@@ -1,0 +1,8 @@
+data/raw/
+
+__pycache__
+
+*.osz
+*.mp3
+*.ogg
+*.wav
