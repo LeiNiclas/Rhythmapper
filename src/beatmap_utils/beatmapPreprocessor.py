@@ -86,7 +86,6 @@ def preprocess_all_raw_beatmapsets(raw_beatmapsets_data_path : str) -> None:
         total_beatmaps = len(beatmaps)
         
         for j, beatmap in enumerate(beatmaps):
-            # Filter the beatmap first.
             beatmap_ID = int(beatmap.split('_')[-1].split('.')[0])
             
             # Skip beatmap(set) if already converted.
