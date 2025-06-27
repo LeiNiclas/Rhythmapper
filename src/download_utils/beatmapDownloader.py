@@ -76,6 +76,9 @@ def download_beatmap(beatmap_ID : int, download_path : str, download_audio : boo
     url = f"https://osu.direct/api/osu/{beatmap_ID}/raw"
     
     request = requests.get(url=url, headers=universal_request_headers)
+    
+    # Handle request rate limit.
+    time.sleep(rlo.get_optimal_wait_time(request=request))
     # --------------------------------------
     
     # -------- File handling --------
@@ -104,20 +107,13 @@ def download_beatmap(beatmap_ID : int, download_path : str, download_audio : boo
             return
         
         audio_file_name_to_end = str_content.split("oFilename:")[1]
-        audio_file_name = audio_file_name_to_end.split("\\")[0]
-        audio_file_name = audio_file_name.split()[0]
+        audio_file_name = audio_file_name_to_end.split("\\")[-1]
+        audio_file_name = audio_file_name.split()[-1]
     else:
         print(f"ERROR (beatmapDownloader.download_beatmap): " +
               f"Failed to download beatmap with ID {beatmap_ID}: {request.status_code}")
-        
-        # Handle request rate limit.
-        time.sleep(rlo.get_optimal_wait_time(request=request))
-        
         return
     # ---------------------------------
-    
-    # Handle request rate limit.
-    time.sleep(rlo.get_optimal_wait_time(request=request))
     
     if not download_audio:
         return
@@ -127,7 +123,7 @@ def download_beatmap(beatmap_ID : int, download_path : str, download_audio : boo
     
     request = requests.get(url=url, headers=universal_request_headers)
     
-    # Handle request rate limit if needed.
+    # Handle request rate limit.
     time.sleep(rlo.get_optimal_wait_time(request=request))
     # ---------------------------------------
     
@@ -142,16 +138,9 @@ def download_beatmap(beatmap_ID : int, download_path : str, download_audio : boo
         with open(audio_file_path, "wb") as f:
             f.write(request.content)
         
-        # Handle request rate limit.
-        time.sleep(rlo.get_optimal_wait_time(request=request))
-        
         return
     else:
         print(f"ERROR (beatmapDownloader.download_beatmap): Failed to download audio for beatmap {beatmap_ID}: {request.status_code}")
-        
-        # Handle request rate limit.
-        time.sleep(rlo.get_optimal_wait_time(request=request))
-        
         return
     # -------------------------------
 
