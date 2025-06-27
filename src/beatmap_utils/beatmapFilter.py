@@ -73,11 +73,12 @@ def beatmap_is_Nk(metadata_json, N : int) -> bool:
         N (int): _The amount of keys used. Also known as "CircleSize" [CS]._
 
     Returns:
-        bool: _True_, if beatmap is Nk. _False_ otherwise.
+        bool: _True_, if beatmap is Nk and the mode is mania (Mode = 3). _False_ otherwise.
     """
     circle_size = metadata_json["CS"]
+    mode = metadata_json["Mode"]
     
-    return circle_size == N
+    return circle_size == N and mode == 3
 
 
 def filter_beatmap(beatmap_ID : int, keys : int) -> tuple[bool, str]:

@@ -227,7 +227,7 @@ def get_merged_beatmap_data(beatmapset_path : str, beatmap_ID : int) -> list[lis
     for bt, feat in zip(beatmap_timings, audio_features):
         # bt[0] = subbeat_idx
         # bt[2:] = [lane0, ..., lane3]
-        merged_data.append(list(bt[0]) + list(feat) + list(bt[2:]))
+        merged_data.append([bt[0]] + list(feat) + list(bt[2:]))
     
     return merged_data
 
