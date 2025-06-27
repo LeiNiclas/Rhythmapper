@@ -12,18 +12,17 @@ def preprocess_beatmap(beatmapset_path : str, beatmap_ID : int) -> None:
     Args:
         beatmapset_path (str): _The path to the beatmapset of the given beatmap._
         beatmap_ID (int): _The ID of the given beatmap._
-    """
-    # Filter the beatmap first.
-    is_4k_beatmap, difficulty_label = bmf.filter_beatmap(beatmap_ID=beatmap_ID, keys=4)
-    
-    # Early exit if beatmap is not 4k
-    if not is_4k_beatmap:
-        return
-    
+    """    
     normalized_merged_data = bmfe.get_merged_beatmap_data(beatmapset_path=beatmapset_path, beatmap_ID=beatmap_ID)
     
     # Early exit if beatmap data cannot be retrieved.
     if normalized_merged_data is None:
+        return
+    
+    is_4k_beatmap, difficulty_label = bmf.filter_beatmap(beatmap_ID=beatmap_ID, keys=4)
+
+    # Early exit if beatmap is not 4k.
+    if not is_4k_beatmap:
         return
     
     # Construct the path to the preprocessed data folder.
@@ -48,6 +47,12 @@ def preprocess_beatmap(beatmapset_path : str, beatmap_ID : int) -> None:
         '%d'
     ]
     
+    normalized_merged_data = np.array(normalized_merged_data)
+    
+    if normalized_merged_data.shape[1] != len(fmt):
+        print(f"Column mismatch for {preprocess_file_path}: {normalized_merged_data.shape[1]} columns found.")
+        return
+    
     # Save data to a csv file.
     np.savetxt(
         preprocess_file_path,
@@ -65,13 +70,29 @@ def preprocess_all_raw_beatmapsets(raw_beatmapsets_data_path : str) -> None:
     
     os.system('cls' if os.name == 'nt' else 'clear')
     
+    
+    preprocessed_root = os.path.join(os.path.dirname(raw_beatmapsets_data_path), "preprocessed")
+    existing_files = set()
+    
+    for difficulty_label in os.listdir(preprocessed_root):
+        diff_dir = os.path.join(preprocessed_root, difficulty_label)
+        
+        for beatmap_file in os.listdir(diff_dir):
+            existing_files.add(beatmap_file)
+    
     for i, beatmapset in enumerate(beatmapsets):
         beatmapset_path = os.path.join(raw_beatmapsets_data_path, beatmapset)
         beatmaps = [beatmap for beatmap in os.listdir(beatmapset_path) if beatmap.startswith("bm")]
         total_beatmaps = len(beatmaps)
         
         for j, beatmap in enumerate(beatmaps):
+            # Filter the beatmap first.
             beatmap_ID = int(beatmap.split('_')[-1].split('.')[0])
+            
+            # Skip beatmap(set) if already converted.
+            if (f"bm_{beatmap_ID}.csv") in existing_files:
+                break
+            
             preprocess_beatmap(beatmapset_path=beatmapset_path, beatmap_ID=beatmap_ID)
 
             bar_length = 16

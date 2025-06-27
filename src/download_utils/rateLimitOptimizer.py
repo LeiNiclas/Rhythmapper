@@ -11,12 +11,9 @@ def get_optimal_wait_time(request) -> float:
     try:
         remaining = int(request.headers.get("Ratelimit-Remaining", 0))
         reset = int(request.headers.get("Ratelimit-Reset", 1))
-    
-        if remaining > 5:
-            return 0.2
-        elif remaining > 0:
-            return max(reset / remaining, 1.0)
-        else:
-            return max(reset, 1.0)
+
+        delta = reset - remaining
+        
+        return max(delta, 0.02)
     except Exception:
         return 0.5

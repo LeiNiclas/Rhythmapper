@@ -221,6 +221,9 @@ def get_merged_beatmap_data(beatmapset_path : str, beatmap_ID : int) -> list[lis
     beatmap_timings = get_beatmap_timings(beatmapset_path=beatmapset_path, beatmap_ID=beatmap_ID)
     audio_features = get_audio_features(audio_file_path=audio_file_path, beat_timings=beatmap_timings)
 
+    if beatmap_timings is None or audio_features is None:
+        return None
+    
     merged_data = []
     
     # Merge beatmap timings and audio features into for each subbeat.
@@ -228,6 +231,9 @@ def get_merged_beatmap_data(beatmapset_path : str, beatmap_ID : int) -> list[lis
         # bt[0] = subbeat_idx
         # bt[2:] = [lane0, ..., lane3]
         merged_data.append([bt[0]] + list(feat) + list(bt[2:]))
+    
+    if len(merged_data) == 0:
+        return None
     
     return merged_data
 
