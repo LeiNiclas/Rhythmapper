@@ -107,8 +107,7 @@ def download_beatmap(beatmap_ID : int, download_path : str, download_audio : boo
             return
         
         audio_file_name_to_end = str_content.split("oFilename:")[1]
-        audio_file_name = audio_file_name_to_end.split("\\")[-1]
-        audio_file_name = audio_file_name.split()[-1]
+        audio_file_name = audio_file_name_to_end.split('\\')[0].strip()
     else:
         print(f"ERROR (beatmapDownloader.download_beatmap): " +
               f"Failed to download beatmap with ID {beatmap_ID}: {request.status_code}")
