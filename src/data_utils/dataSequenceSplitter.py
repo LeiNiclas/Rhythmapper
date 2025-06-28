@@ -7,6 +7,9 @@ from glob import glob
 from sklearn.model_selection import train_test_split
 
 
+SEQUENCE_LENGTH = 64
+
+
 def load_all_preprocessed_csvs(preprocessed_root : str) -> np.ndarray:
     """
     Load data from the preprocessed CSV-files.
@@ -173,12 +176,11 @@ def split_and_save_sequences(sequences : np.ndarray, file_path : str, out_prefix
 
 if __name__ == "__main__":
     preprocessed_root = "Z:\\Programs\\Python\\osumania-levelgen\\data\\preprocessed"
-    sequence_length = 32
 
     print("Creating and saving sequences by difficulty (with splitting)...")
     create_and_save_sequences_by_difficulty(
         preprocessed_root=preprocessed_root,
-        sequence_length=sequence_length,
+        sequence_length=SEQUENCE_LENGTH,
         out_dir=os.path.join(os.path.dirname(preprocessed_root), "sequences"),
         max_gb=0.25
     )
