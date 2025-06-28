@@ -3,6 +3,7 @@ import tensorflow as tf
 import glob
 import os
 
+
 def npy_file_generator(file_pattern : str):
     """
     Generator that yields batches from each .npy-file
@@ -19,7 +20,7 @@ def npy_file_generator(file_pattern : str):
     
     # Load all files.
     for fname in files:
-        print(f"Loading {fname} ...")
+        # print(f"Loading {fname} ...")
         
         arr = np.load(fname, mmap_mode='r')
         
@@ -57,3 +58,21 @@ def get_tf_dataset(file_pattern : str, batch_size : int = 64, shuffle_buffer : i
     ds = ds.prefetch(tf.data.AUTOTUNE)
     
     return ds
+
+
+def get_difficulty_dataset(sequences_root : str, difficulty : str, split : str = "train", batch_size : int = 64, shuffle_buffer : int = 10000) ->tf.data.Dataset:
+    """
+    Load a tf.data.Dataset for a specific difficulty and split.
+
+    Args:
+        sequences_root (str): _Root directory where difficulty folders are stored._
+        difficulty (str): _Difficulty label (e.g. "Insane", "Easy", etc.)._
+        split (str, optional): _Which split to load ("train" or "test")._ Defaults to "train".
+        batch_size (int, optional): _Batch size._ Defaults to 64.
+        shuffle_buffer (int, optional): _Shuffle buffer size._ Defaults to 10000.
+
+    Returns:
+        tf.data.Dataset: _A dataset for the specified difficulty and split._
+    """
+    pattern = os.path.join(sequences_root, difficulty, split, f"{difficulty}_{split}_sequences_*.npy")
+    return get_tf_dataset(pattern, batch_size=batch_size, shuffle_buffer=shuffle_buffer)

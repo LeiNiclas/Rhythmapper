@@ -79,6 +79,59 @@ def split_train_test(sequences : np.ndarray, test_ratio : float = 0.2, random_st
     return train_test_split(sequences, test_size=test_ratio, random_state=random_state)
 
 
+def create_and_save_sequences_by_difficulty(preprocessed_root : str, sequence_length : int, out_dir : str, max_gb : float = 1.0, test_ratio :  float = 0.2) -> None:
+    """
+    Split the data into multiple train and test .npy-files,
+    each up to max_gb in size.
+
+    Args:
+        preprocessed_root (str): _The directory to the preprocessed data._
+        sequence_length (int): _The length of individual sequences._
+        out_dir (str): _The output directory for the output file names._
+        max_gb (float, optional): _The maximum size in GB for each file._ Defaults to 1.0.
+        test_ratio (float, optional): _Fraction of data to use for testing._ Defaults to 0.2.
+    """
+    for difficulty_label in os.listdir(preprocessed_root):
+        diff_dir = os.path.join(preprocessed_root, difficulty_label)
+        
+        if not os.path.isdir(diff_dir):
+            continue
+        
+        csv_files = glob(os.path.join(diff_dir, "bm_*.csv"))
+        data = []
+        
+        for csv_file in csv_files:
+            try:
+                df = pd.read_csv(csv_file)
+                
+                if df.empty:
+                    continue
+                
+                data.append(df.values)
+            except Exception:
+                continue
+        
+        if not data:
+            continue
+        
+        all_data = np.concatenate(data, axis=0)
+        
+        # Create sequences for this difficulty
+        sequences = create_sequences(all_data, sequence_length=sequence_length)
+        sequences = create_sequences(all_data, sequence_length)
+        
+        print(f"Total sequences for {difficulty_label}: {len(sequences)}")
+
+        # Split into train and test
+        train_sequences, test_sequences = split_train_test(sequences=sequences, test_ratio=test_ratio)
+        print(f"Train: {len(train_sequences)}, Test: {len(test_sequences)}")
+
+        # Save and split by max_gb
+        diff_out_dir = os.path.join(out_dir, difficulty_label)
+        split_and_save_sequences(train_sequences, os.path.join(diff_out_dir, "train"), f"{difficulty_label}_train_sequences", max_gb=max_gb)
+        split_and_save_sequences(test_sequences, os.path.join(diff_out_dir, "test"), f"{difficulty_label}_test_sequences", max_gb=max_gb)
+
+
 def split_and_save_sequences(sequences : np.ndarray, file_path : str, out_prefix : str, max_gb : float = 1.0) -> None:
     """
     Split a large sequence array into multiple .npy files,
@@ -103,6 +156,8 @@ def split_and_save_sequences(sequences : np.ndarray, file_path : str, out_prefix
         end = min((i+1) * seqs_per_file, total_seqs)
         chunk = sequences[start:end]
         fname = f"{out_prefix}_{i+1}.npy"
+        
+        os.makedirs(file_path, exist_ok=True)
         np.save(os.path.join(file_path, fname), chunk)
         
         print(f"Saved {fname} with shape {chunk.shape}")
@@ -112,22 +167,10 @@ if __name__ == "__main__":
     preprocessed_root = "Z:\\Programs\\Python\\osumania-levelgen\\data\\preprocessed"
     sequence_length = 64
 
-    print("Loading data...")
-    all_data = load_all_preprocessed_csvs(preprocessed_root)
-    print(f"Loaded data shape: {all_data.shape}")
-
-    print("Creating sequences...")
-    sequences = create_sequences(all_data, sequence_length)
-    print(f"Total sequences: {len(sequences)}")
-
-    print("Splitting train/test...")
-    train_seqs, test_seqs = split_train_test(sequences)
-    print(f"Train sequences: {len(train_seqs)}, Test sequences: {len(test_seqs)}")
-
-    train_data_path = os.path.join(os.path.dirname(preprocessed_root), "sequences", "train")
-    test_data_path = os.path.join(os.path.dirname(preprocessed_root), "sequences", "test")
-    
-    print("Splitting and saving train sequences...")
-    split_and_save_sequences(train_seqs, train_data_path, "train_sequences", max_gb=1.0)
-    print("Splitting and saving test sequences...")
-    split_and_save_sequences(test_seqs, test_data_path, "test_sequences", max_gb=1.0)
+    print("Creating and saving sequences by difficulty (with splitting)...")
+    create_and_save_sequences_by_difficulty(
+        preprocessed_root=preprocessed_root,
+        sequence_length=sequence_length,
+        out_dir=os.path.join(os.path.dirname(preprocessed_root), "sequences"),
+        max_gb=0.5
+    )
