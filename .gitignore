@@ -1,5 +1,8 @@
 data/raw/
 data/sequences/
+data/audio
+
+generated/
 
 __pycache__
 
@@ -7,3 +10,4 @@ __pycache__
 *.mp3
 *.ogg
 *.wav
+*.json

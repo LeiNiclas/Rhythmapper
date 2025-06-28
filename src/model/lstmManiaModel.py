@@ -21,6 +21,8 @@ def build_lstm_model(input_shape: tuple, output_dim: int) -> tf.keras.Model:
         tf.keras.layers.Dropout(0.3),
         tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(128, return_sequences=True)),
         tf.keras.layers.Dropout(0.2),
+        # tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(128, return_sequences=True)),
+        # tf.keras.layers.Dropout(0.2),
         tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(64, activation='relu')),
         tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(output_dim, activation='sigmoid'))
     ])
@@ -34,7 +36,7 @@ def build_lstm_model(input_shape: tuple, output_dim: int) -> tf.keras.Model:
     return model
 
 if __name__ == "__main__":
-    sequence_length = 64
+    sequence_length = 32
     num_features = 11
     output_dim = 4
 

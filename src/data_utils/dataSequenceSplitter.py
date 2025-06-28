@@ -118,7 +118,15 @@ def create_and_save_sequences_by_difficulty(preprocessed_root : str, sequence_le
         
         # Create sequences for this difficulty
         sequences = create_sequences(all_data, sequence_length=sequence_length)
-        sequences = create_sequences(all_data, sequence_length)
+        
+        # -------- Normalization of MFCC columns --------
+        mfcc_cols = [1, 2, 3, 4, 5]
+        
+        for col in mfcc_cols:
+            mean = np.mean(sequences[:, :, col])
+            std = np.std(sequences[:, :, col])
+            sequences[:, :, col] = (sequences[:, :, col] - mean) / (std + 1e-8)
+        # -----------------------------------------------
         
         print(f"Total sequences for {difficulty_label}: {len(sequences)}")
 
@@ -165,12 +173,12 @@ def split_and_save_sequences(sequences : np.ndarray, file_path : str, out_prefix
 
 if __name__ == "__main__":
     preprocessed_root = "Z:\\Programs\\Python\\osumania-levelgen\\data\\preprocessed"
-    sequence_length = 64
+    sequence_length = 32
 
     print("Creating and saving sequences by difficulty (with splitting)...")
     create_and_save_sequences_by_difficulty(
         preprocessed_root=preprocessed_root,
         sequence_length=sequence_length,
         out_dir=os.path.join(os.path.dirname(preprocessed_root), "sequences"),
-        max_gb=0.5
+        max_gb=0.25
     )

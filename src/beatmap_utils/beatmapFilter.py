@@ -95,7 +95,7 @@ def filter_beatmap(beatmap_ID : int, keys : int) -> tuple[bool, str]:
     beatmap_metadata = get_beatmap_metadata(beatmap_ID=beatmap_ID)
     
     if beatmap_metadata is None:
-        return
+        return False, "ERROR"
     
     beatmap_difficulty = get_beatmap_difficutly(metadata_json=beatmap_metadata)
     beatmap_fits_criteria = beatmap_is_Nk(metadata_json=beatmap_metadata, N=keys)
