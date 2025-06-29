@@ -4,6 +4,9 @@ import os
 import librosa
 
 
+NOTE_PRECISION = 2
+
+
 def get_beatmap_BPM(beatmap_file_contents : list[str]) -> tuple[float]:
     """
     Retrieve the BPM of a beatmap through its file contents.
@@ -218,7 +221,7 @@ def get_merged_beatmap_data(beatmapset_path : str, beatmap_ID : int) -> list[lis
     audio_file_path = os.path.join(beatmapset_path, audio_file)
     
     # Extract normalized beatmap timings and audio features.
-    beatmap_timings = get_beatmap_timings(beatmapset_path=beatmapset_path, beatmap_ID=beatmap_ID, note_precision=2)
+    beatmap_timings = get_beatmap_timings(beatmapset_path=beatmapset_path, beatmap_ID=beatmap_ID, note_precision=NOTE_PRECISION)
     audio_features = get_audio_features(audio_file_path=audio_file_path, beat_timings=beatmap_timings)
 
     if beatmap_timings is None or audio_features is None:

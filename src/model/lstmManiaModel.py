@@ -4,6 +4,9 @@ from keras._tf_keras.keras.losses import BinaryFocalCrossentropy
 from keras._tf_keras.keras.metrics import Recall, Precision
 
 
+MODEL_SEQUENCE_LENGTH = 64
+
+
 def build_lstm_model(input_shape: tuple, output_dim: int) -> tf.keras.Model:
     """
     Build and return a sequential LSTM model for osu!mania sequence generation.
@@ -21,8 +24,6 @@ def build_lstm_model(input_shape: tuple, output_dim: int) -> tf.keras.Model:
         tf.keras.layers.Dropout(0.3),
         tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(128, return_sequences=True)),
         tf.keras.layers.Dropout(0.2),
-        # tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(128, return_sequences=True)),
-        # tf.keras.layers.Dropout(0.2),
         tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(64, activation='relu')),
         tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(output_dim, activation='sigmoid'))
     ])
@@ -36,9 +37,8 @@ def build_lstm_model(input_shape: tuple, output_dim: int) -> tf.keras.Model:
     return model
 
 if __name__ == "__main__":
-    sequence_length = 32
     num_features = 11
     output_dim = 4
 
-    model = build_lstm_model(input_shape=(sequence_length, num_features), output_dim=output_dim)
+    model = build_lstm_model(input_shape=(MODEL_SEQUENCE_LENGTH, num_features), output_dim=output_dim)
     model.summary()

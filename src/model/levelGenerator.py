@@ -7,9 +7,9 @@ import json
 AUDIO_PATH = "Z:\\Programs\\Python\\osumania-levelgen\\data\\audio\\test_audio.mp3"
 AUDIO_BPM = 124
 AUDIO_START_MS = 124
-MODEL_PATH = "Z:\\Programs\\Python\\osumania-levelgen\\models\\model-3-4_stars-P2-S32.h5"
-SEQUENCE_LENGTH = 32
-THRESHOLD = 0.35
+MODEL_PATH = "Z:\\Programs\\Python\\osumania-levelgen\\models\\model-3-4_stars-P2-S64.keras"
+SEQUENCE_LENGTH = 64
+THRESHOLD = 0.4
 NOTE_PRECISION = 2
 NORM_STATS_PATH = "Z:\\Programs\\Python\\osumania-levelgen\\mfcc_norm_stats.json"
 
@@ -31,11 +31,11 @@ def extract_features(audio_path, bpm, start_ms, sequence_length, note_precision,
      
     features = []
     
-    for subbeat_idx, t_ms in enumerate(subbeat_times_ms):
+    # No need for subbeat_idxs.
+    for t_ms in subbeat_times_ms:
         frame_idx = int((t_ms / 1000) * sr / hop_length)
         frame_idx = min(frame_idx, mfcc.shape[0] - 1)
-        feature_vector = [subbeat_idx]
-        feature_vector += list(mfcc[frame_idx])
+        feature_vector = list(mfcc[frame_idx])
         feature_vector.append(float(onset_env[frame_idx]))
         features.append(feature_vector)
     
@@ -80,7 +80,7 @@ def convert_prediction_to_hit_objects(mania_chart, audio_start_ms, ms_per_subbea
                 hitobjects.append(f"{x},{y},{time},{type_},{hitSound},{addition}")
     
     return hitobjects
- 
+
 
 def main():
     stats = None
@@ -92,10 +92,13 @@ def main():
     stds = stats["stds"]
     
     features = extract_features(AUDIO_PATH, AUDIO_BPM, AUDIO_START_MS, SEQUENCE_LENGTH, NOTE_PRECISION, means=means, stds=stds)
-    print(f"Extracted features shape: {features.shape}")
 
     model = tf.keras.models.load_model(MODEL_PATH, compile=False)
     preds = model.predict(features)
+    
+    for pred in preds:
+        print(pred)
+    
     preds_bin = (preds > THRESHOLD).astype(int)
     
     mania_chart = preds_bin.reshape(-1, preds_bin.shape[-1])
@@ -107,13 +110,12 @@ def main():
         mania_chart, AUDIO_START_MS, ms_per_subbeat
     )
     
-    with open("generated2.osu", "w", encoding="utf-8") as f:
+    with open("generated.osu", "w", encoding="utf-8") as f:
         f.write("[HitObjects]\n")
         
         for hit_object in hit_objects:
             f.write(hit_object + "\n")
     
-
 
 if __name__ == "__main__":
     main()

@@ -6,6 +6,8 @@ generated/
 
 __pycache__
 
+checkpoint_model.keras
+
 *.osz
 *.mp3
 *.ogg
