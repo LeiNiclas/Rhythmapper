@@ -7,9 +7,9 @@ generated/
 __pycache__
 
 checkpoint_model.keras
+mfcc_norm_stats.json
 
 *.osz
 *.mp3
 *.ogg
 *.wav
-*.json

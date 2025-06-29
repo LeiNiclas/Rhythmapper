@@ -1,17 +1,27 @@
+import argparse
+import json
+import librosa
 import numpy as np
 import tensorflow as tf
-import librosa
-import json
 
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--prediction_threshold", type=float, default=0.45)
+parser.add_argument("--sequence_length", type=int, default=64)
+parser.add_argument("--note_precision", type=int, default=2)
+parser.add_argument("--audio_bpm", type=int, default=100)
+parser.add_argument("--audio_start_ms", type=int, default=0)
+args = parser.parse_args()
 
 AUDIO_PATH = "Z:\\Programs\\Python\\osumania-levelgen\\data\\audio\\test_audio.mp3"
-AUDIO_BPM = 124
-AUDIO_START_MS = 124
 MODEL_PATH = "Z:\\Programs\\Python\\osumania-levelgen\\models\\model-3-4_stars-P2-S64.keras"
-SEQUENCE_LENGTH = 64
-THRESHOLD = 0.4
-NOTE_PRECISION = 2
 NORM_STATS_PATH = "Z:\\Programs\\Python\\osumania-levelgen\\mfcc_norm_stats.json"
+
+AUDIO_BPM = args.audio_bpm
+AUDIO_START_MS = args.audio_start_ms
+SEQUENCE_LENGTH = args.sequence_length
+THRESHOLD = args.prediction_threshold
+NOTE_PRECISION = args.note_precision
 
 
 def extract_features(audio_path, bpm, start_ms, sequence_length, note_precision, means, stds):

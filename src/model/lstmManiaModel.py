@@ -30,7 +30,7 @@ def build_lstm_model(input_shape: tuple, output_dim: int) -> tf.keras.Model:
     
     model.compile(
         optimizer='adam',
-        loss=BinaryFocalCrossentropy(gamma=1.5),
+        loss=BinaryFocalCrossentropy(gamma=2),
         metrics=[Recall(), Precision()]
     )
     

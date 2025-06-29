@@ -1,11 +1,17 @@
 from . import beatmapFeatureExtractor as bmfe
 from . import beatmapFilter as bmf
 
+import argparse
 import numpy as np
 import os
 
 
-def preprocess_beatmap(beatmapset_path : str, beatmap_ID : int) -> None:
+parser = argparse.ArgumentParser()
+parser.add_argument("--note_precision", type=int, default=2)
+args = parser.parse_args()
+
+
+def preprocess_beatmap(beatmapset_path : str, beatmap_ID : int, note_precision : int) -> None:
     """
     Preprocesses a given beatmap and saves the normalized data to a CSV-file.
 
@@ -13,7 +19,7 @@ def preprocess_beatmap(beatmapset_path : str, beatmap_ID : int) -> None:
         beatmapset_path (str): _The path to the beatmapset of the given beatmap._
         beatmap_ID (int): _The ID of the given beatmap._
     """    
-    normalized_merged_data = bmfe.get_merged_beatmap_data(beatmapset_path=beatmapset_path, beatmap_ID=beatmap_ID)
+    normalized_merged_data = bmfe.get_merged_beatmap_data(beatmapset_path=beatmapset_path, beatmap_ID=beatmap_ID, note_precision=note_precision)
     
     # Early exit if beatmap data cannot be retrieved.
     if normalized_merged_data is None:
@@ -64,7 +70,7 @@ def preprocess_beatmap(beatmapset_path : str, beatmap_ID : int) -> None:
     )
 
 
-def preprocess_all_raw_beatmapsets(raw_beatmapsets_data_path : str) -> None:
+def preprocess_all_raw_beatmapsets(raw_beatmapsets_data_path : str, note_precision : int) -> None:
     beatmapsets = os.listdir(raw_beatmapsets_data_path)
     total_beatmapsets = len(beatmapsets)
     
@@ -92,7 +98,7 @@ def preprocess_all_raw_beatmapsets(raw_beatmapsets_data_path : str) -> None:
             if (f"bm_{beatmap_ID}.csv") in existing_files:
                 break
             
-            preprocess_beatmap(beatmapset_path=beatmapset_path, beatmap_ID=beatmap_ID)
+            preprocess_beatmap(beatmapset_path=beatmapset_path, beatmap_ID=beatmap_ID, note_precision=note_precision)
 
             bar_length = 16
             progress = int(bar_length * (j+1) / total_beatmaps)
@@ -114,5 +120,9 @@ def preprocess_all_raw_beatmapsets(raw_beatmapsets_data_path : str) -> None:
     print(f"{68*'='}")
 
 
+def main():
+    preprocess_all_raw_beatmapsets("Z:\\Programs\\Python\\osumania-levelgen\\data\\raw", args.note_precision)
+    
+
 if __name__ == "__main__":
-    preprocess_all_raw_beatmapsets("Z:\\Programs\\Python\\osumania-levelgen\\data\\raw")
+    main()

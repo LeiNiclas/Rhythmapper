@@ -1,13 +1,17 @@
-import numpy as np
+import argparse
 import math
+import numpy as np
 import os
 import pandas as pd
+import shutil
 
 from glob import glob
 from sklearn.model_selection import train_test_split
 
 
-SEQUENCE_LENGTH = 64
+parser = argparse.ArgumentParser()
+parser.add_argument("--sequence_length", type=int, default=64)
+args = parser.parse_args()
 
 
 def load_all_preprocessed_csvs(preprocessed_root : str) -> np.ndarray:
@@ -154,6 +158,16 @@ def split_and_save_sequences(sequences : np.ndarray, file_path : str, out_prefix
         out_prefix (_type_): _The Prefix for the output file names._
         max_gb (float, optional): _The maximum size in GB for each file._ Defaults to 1.0.
     """
+    if os.path.exists(file_path):
+        # Remove all files in the directory
+        for fname in os.listdir(file_path):
+            fpath = os.path.join(file_path, fname)
+            
+            if os.path.isfile(fpath):
+                os.remove(fpath)
+    else:
+        os.makedirs(file_path, exist_ok=True)
+    
     # Calculate bytes per sequence
     bytes_per_seq = sequences[0].nbytes
     seqs_per_file = int((max_gb * 1024**3) // bytes_per_seq)
@@ -174,13 +188,18 @@ def split_and_save_sequences(sequences : np.ndarray, file_path : str, out_prefix
         print(f"Saved {fname} with shape {chunk.shape}")
 
 
-if __name__ == "__main__":
+def main():
     preprocessed_root = "Z:\\Programs\\Python\\osumania-levelgen\\data\\preprocessed"
 
     print("Creating and saving sequences by difficulty (with splitting)...")
+    
     create_and_save_sequences_by_difficulty(
         preprocessed_root=preprocessed_root,
-        sequence_length=SEQUENCE_LENGTH,
+        sequence_length=args.sequence_length,
         out_dir=os.path.join(os.path.dirname(preprocessed_root), "sequences"),
         max_gb=0.25
     )
+
+
+if __name__ == "__main__":
+    main()

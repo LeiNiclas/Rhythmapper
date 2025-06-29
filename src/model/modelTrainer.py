@@ -1,7 +1,8 @@
+import argparse
 import copy
-import tensorflow as tf
 import numpy as np
 import os
+import tensorflow as tf
 
 from src.data_utils.dataSequenceLoader import get_difficulty_dataset
 from src.model.lstmManiaModel import build_lstm_model
@@ -11,10 +12,20 @@ from keras._tf_keras.keras.callbacks import ModelCheckpoint, EarlyStopping
 train_pattern = r"Z:\Programs\Python\osumania-levelgen\data\sequences\train\train_sequences_*.npy"
 test_pattern = r"Z:\Programs\Python\osumania-levelgen\data\sequences\test\test_sequences_*.npy"
 
+parser = argparse.ArgumentParser()
+parser.add_argument("--prediction_threshold", type=float, default=0.45)
+parser.add_argument("--num_input_features", type=int, default=6)
+parser.add_argument("--sequence_length", type=int, default=64)
+parser.add_argument("--note_precision", type=int, default=2)
+parser.add_argument("--difficulty_range", type=str, default="3-4_stars")
+args = parser.parse_args()
+
 SEQUENCES_ROOT = "Z:\\Programs\\Python\\osumania-levelgen\\data\\sequences"
-DATA_NOTE_PRECISION = 2 # beatscale = Quarter note / precision 
-MODEL_SEQUENCE_LENGTH = 64
-MODEL_TARGET_DIFFICULTY = "3-4_stars"
+DATA_NOTE_PRECISION = args.note_precision
+MODEL_SEQUENCE_LENGTH = args.sequence_length
+MODEL_TARGET_DIFFICULTY = args.difficulty_range
+THRESHOLD = args.prediction_threshold
+NUM_INPUT_FEATURES = args.num_input_features
 
 
 def split_X_y(batch):
@@ -22,8 +33,7 @@ def split_X_y(batch):
     return batch[:, :, 1:7], batch[:, :, 7:]
 
 
-
-if __name__ == "__main__":
+def main():
     # Create datasets.
     train_ds = get_difficulty_dataset(
         sequences_root=SEQUENCES_ROOT,
@@ -58,7 +68,7 @@ if __name__ == "__main__":
     
     early_stop = EarlyStopping(
         monitor="val_loss",
-        patience=7,
+        patience=5,
         restore_best_weights=True
     )
     
@@ -71,7 +81,7 @@ if __name__ == "__main__":
     model.fit(
         train_ds,
         validation_data = test_ds,
-        epochs=100,
+        epochs=10,
         steps_per_epoch=500,
         validation_steps=100,
         callbacks=[checkpoint_callback, early_stop]
@@ -108,3 +118,8 @@ if __name__ == "__main__":
     for name, imp in zip(feature_names, importances):
         print(f"{name}: {imp:.5f}")
     # --------------------------------------------
+
+
+
+if __name__ == "__main__":
+    main()

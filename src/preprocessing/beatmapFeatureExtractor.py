@@ -1,10 +1,7 @@
+import librosa
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-import librosa
-
-
-NOTE_PRECISION = 2
 
 
 def get_beatmap_BPM(beatmap_file_contents : list[str]) -> tuple[float]:
@@ -190,7 +187,7 @@ def get_audio_features(audio_file_path : str, beat_timings : list[list]) -> list
     return features
 
 
-def get_merged_beatmap_data(beatmapset_path : str, beatmap_ID : int) -> list[list]:
+def get_merged_beatmap_data(beatmapset_path : str, beatmap_ID : int, note_precision : int) -> list[list]:
     """
     Retrieve the normalized, merged HitObject timing and audio feature data
     for a given beatmap.
@@ -221,7 +218,7 @@ def get_merged_beatmap_data(beatmapset_path : str, beatmap_ID : int) -> list[lis
     audio_file_path = os.path.join(beatmapset_path, audio_file)
     
     # Extract normalized beatmap timings and audio features.
-    beatmap_timings = get_beatmap_timings(beatmapset_path=beatmapset_path, beatmap_ID=beatmap_ID, note_precision=NOTE_PRECISION)
+    beatmap_timings = get_beatmap_timings(beatmapset_path=beatmapset_path, beatmap_ID=beatmap_ID, note_precision=note_precision)
     audio_features = get_audio_features(audio_file_path=audio_file_path, beat_timings=beatmap_timings)
 
     if beatmap_timings is None or audio_features is None:

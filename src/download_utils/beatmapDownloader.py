@@ -1,13 +1,18 @@
+import argparse
 import os
-import time
-import requests
 import rateLimitOptimizer as rlo
+import requests
+import time
 
 
 universal_request_headers = {
     "User-Agent": "Mozialla/5.0",
     "Accept": "application/json"
 } 
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--num_beatmapsets", type=int, default=0)
+args = parser.parse_args()
 
 
 def fetch_mania_beatmapset_IDs(amount_of_sets : int, page_offset : int) -> dict:
@@ -189,11 +194,20 @@ def batch_download_beatmaps(amount_of_sets : int, page_offset : int, download_fo
     print(f"{59*'='}\n")
 
 
-if __name__ == "__main__":
-    download_folder = os.path.join(os.getcwd(), "data", "raw")
-    os.makedirs(download_folder, exist_ok=True)
+def main():
+    if not args.num_beatmapsets:
+        return
     
+    download_folder = os.path.join(os.getcwd(), "data", "raw")
+    
+    os.makedirs(download_folder, exist_ok=True)
     os.system('cls' if os.name == 'nt' else 'clear')
     
-    for i in range(10):
-        batch_download_beatmaps(100, i, download_folder)
+    num_batches = args.num_beatmapsets // 100
+    
+    for i in range(num_batches):
+        batch_download_beatmaps(args.num_beatmapsets // 10, i, download_folder)
+
+
+if __name__ == "__main__":
+    main()
