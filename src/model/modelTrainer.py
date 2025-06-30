@@ -4,26 +4,38 @@ import numpy as np
 import os
 import tensorflow as tf
 
+from keras.callbacks import ModelCheckpoint, EarlyStopping
 from src.data_utils.dataSequenceLoader import get_difficulty_dataset
 from src.model.lstmManiaModel import build_lstm_model
-from keras.callbacks import ModelCheckpoint, EarlyStopping
 
 
 train_pattern = r"Z:\Programs\Python\osumania-levelgen\data\sequences\train\train_sequences_*.npy"
 test_pattern = r"Z:\Programs\Python\osumania-levelgen\data\sequences\test\test_sequences_*.npy"
 
 parser = argparse.ArgumentParser()
+parser.add_argument("--difficulty_range", type=str, default="3-4_stars")
+parser.add_argument("--max_vram_mb", type=int, default=2048)
+parser.add_argument("--note_precision", type=int, default=2)
 parser.add_argument("--prediction_threshold", type=float, default=0.45)
 parser.add_argument("--sequence_length", type=int, default=64)
-parser.add_argument("--note_precision", type=int, default=2)
-parser.add_argument("--difficulty_range", type=str, default="3-4_stars")
 args = parser.parse_args()
 
 SEQUENCES_ROOT = "Z:\\Programs\\Python\\osumania-levelgen\\data\\sequences"
 DATA_NOTE_PRECISION = args.note_precision
+GPU_MAX_VRAM = args.max_vram_mb
 MODEL_SEQUENCE_LENGTH = args.sequence_length
 MODEL_TARGET_DIFFICULTY = args.difficulty_range
 THRESHOLD = args.prediction_threshold
+
+
+# Prevent tensorflow from taking all VRAM from the GPU
+gpus = tf.config.experimental.list_physical_devices('GPU')
+    
+if gpus:
+    try:
+        tf.config.experimental.set_virtual_device_configuration(gpus[0], [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=GPU_MAX_VRAM)])
+    except RuntimeError as e:
+        print(e)
 
 
 def split_X_y(batch):
@@ -75,13 +87,11 @@ def main():
     else:
         model = tf.keras.models.load_model("checkpoint_model.keras")
     
-    print(tf.config.list_physical_devices("GPU"))
-    
     # Train the model using the test set for validation.
     model.fit(
         train_ds,
         validation_data = test_ds,
-        epochs=10,
+        epochs=100,
         steps_per_epoch=500,
         validation_steps=100,
         callbacks=[checkpoint_callback, early_stop]

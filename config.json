@@ -4,6 +4,7 @@
     "note_precision": 4,
     "prediction_threshold": 0.45,
     "sequence_length": 128,
+    "max_vram_mb": 2048,
 
     "audio_bpm": 124,
     "audio_start_ms": 124,

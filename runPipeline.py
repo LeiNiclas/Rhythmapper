@@ -59,7 +59,8 @@ def main():
             "--prediction_threshold", str(config["prediction_threshold"]),
             "--sequence_length", str(config["sequence_length"]),
             "--note_precision", str(config["note_precision"]),
-            "--difficulty_range", str(config["difficulty_range"])
+            "--difficulty_range", str(config["difficulty_range"]),
+            "--max_vram_mb", str(config["max_vram_mb"])
         ], "Train Model")
 
     # Step 6: Generate level
