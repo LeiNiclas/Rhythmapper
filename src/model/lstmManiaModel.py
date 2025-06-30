@@ -1,13 +1,10 @@
 import tensorflow as tf
 
-from keras._tf_keras.keras.losses import BinaryFocalCrossentropy
-from keras._tf_keras.keras.metrics import Recall, Precision
+from keras.losses import BinaryFocalCrossentropy
+from keras.metrics import Recall, Precision
 
 
-MODEL_SEQUENCE_LENGTH = 64
-
-
-def build_lstm_model(input_shape: tuple, output_dim: int) -> tf.keras.Model:
+def build_lstm_model(input_shape : tuple, output_dim : int) -> tf.keras.Model:
     """
     Build and return a sequential LSTM model for osu!mania sequence generation.
 
@@ -31,14 +28,7 @@ def build_lstm_model(input_shape: tuple, output_dim: int) -> tf.keras.Model:
     model.compile(
         optimizer='adam',
         loss=BinaryFocalCrossentropy(gamma=2),
-        metrics=[Recall(), Precision()]
+        metrics=[Precision(), Recall()]
     )
     
     return model
-
-if __name__ == "__main__":
-    num_features = 11
-    output_dim = 4
-
-    model = build_lstm_model(input_shape=(MODEL_SEQUENCE_LENGTH, num_features), output_dim=output_dim)
-    model.summary()

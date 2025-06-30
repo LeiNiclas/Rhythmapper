@@ -55,7 +55,11 @@ def main():
     # Step 5: Train model
     if run_model_trainer:
         run_step([
-            "python", "-m", "src.model.modelTrainer"
+            "python", "-m", "src.model.modelTrainer",
+            "--prediction_threshold", str(config["prediction_threshold"]),
+            "--sequence_length", str(config["sequence_length"]),
+            "--note_precision", str(config["note_precision"]),
+            "--difficulty_range", str(config["difficulty_range"])
         ], "Train Model")
 
     # Step 6: Generate level

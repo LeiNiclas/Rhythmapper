@@ -6,7 +6,7 @@ import tensorflow as tf
 
 from src.data_utils.dataSequenceLoader import get_difficulty_dataset
 from src.model.lstmManiaModel import build_lstm_model
-from keras._tf_keras.keras.callbacks import ModelCheckpoint, EarlyStopping
+from keras.callbacks import ModelCheckpoint, EarlyStopping
 
 
 train_pattern = r"Z:\Programs\Python\osumania-levelgen\data\sequences\train\train_sequences_*.npy"
@@ -14,7 +14,6 @@ test_pattern = r"Z:\Programs\Python\osumania-levelgen\data\sequences\test\test_s
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--prediction_threshold", type=float, default=0.45)
-parser.add_argument("--num_input_features", type=int, default=6)
 parser.add_argument("--sequence_length", type=int, default=64)
 parser.add_argument("--note_precision", type=int, default=2)
 parser.add_argument("--difficulty_range", type=str, default="3-4_stars")
@@ -25,7 +24,6 @@ DATA_NOTE_PRECISION = args.note_precision
 MODEL_SEQUENCE_LENGTH = args.sequence_length
 MODEL_TARGET_DIFFICULTY = args.difficulty_range
 THRESHOLD = args.prediction_threshold
-NUM_INPUT_FEATURES = args.num_input_features
 
 
 def split_X_y(batch):
@@ -76,6 +74,8 @@ def main():
         model = build_lstm_model(input_shape=(sequence_length, num_features), output_dim=output_dim)
     else:
         model = tf.keras.models.load_model("checkpoint_model.keras")
+    
+    print(tf.config.list_physical_devices("GPU"))
     
     # Train the model using the test set for validation.
     model.fit(

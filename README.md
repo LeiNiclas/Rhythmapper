@@ -13,10 +13,10 @@ root
 |   |-- preprocessed # Preprocessed beatmap data is stored here.
 |   |   |-- 0-1_stars
 |   |   |   |-- bm_12345678.csv
-|   |   |   `-- bm_42314159.csv
-|   |   |-- ...
+|   |   |   |-- bm_42314159.csv
+|   |   |-- `-- ...
 |   |   |-- 4-5_stars # Same subfolder structure as 0-1_stars.
-|   |   `--5_stars_plus # ^
+|   |   `-- 5_stars_plus # ^
 |   |-- raw # Raw beatmap data.
 |   `-- sequences # Generated sequence data is stored here.
 |       |-- 0-1_stars

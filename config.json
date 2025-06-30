@@ -1,6 +1,6 @@
 {
     "difficulty_range": "3-4_stars",
-    "download_beatmapsets": 0,
+    "download_beatmapsets": 1000,
     "note_precision": 4,
     "prediction_threshold": 0.45,
     "sequence_length": 128,
@@ -10,8 +10,8 @@
 
     "run_beatmap_downloader": false,
     "run_beatmap_preprocessor": false,
-    "run_sequence_splitter": true,
-    "run_mfcc_normalizer": true,
+    "run_sequence_splitter": false,
+    "run_mfcc_normalizer": false,
     "run_model_trainer": true,
     "run_level_generator": true
 }
