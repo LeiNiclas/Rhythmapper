@@ -56,17 +56,21 @@ def main():
     if run_model_trainer:
         run_step([
             "python", "-m", "src.model.modelTrainer",
-            "--prediction_threshold", str(config["prediction_threshold"]),
-            "--sequence_length", str(config["sequence_length"]),
-            "--note_precision", str(config["note_precision"]),
             "--difficulty_range", str(config["difficulty_range"]),
-            "--max_vram_mb", str(config["max_vram_mb"])
+            "--max_vram_mb", str(config["max_vram_mb"]),
+            "--note_precision", str(config["note_precision"]),
+            "--sequence_length", str(config["sequence_length"])
         ], "Train Model")
 
     # Step 6: Generate level
     if run_level_generator:
         run_step([
-            "python", "src/model/levelGenerator.py"
+            "python", "src/model/levelGenerator.py",
+            "--audio_bpm", str(config["audio_bpm"]),
+            "--audio_start_ms", str(config["audio_start_ms"]),
+            "--note_precision", str(config["note_precision"]),
+            "--prediction_threshold", str(config["prediction_threshold"]),
+            "--sequence_length", str(config["sequence_length"])
         ], "Generate Level")
 
 

@@ -2,6 +2,9 @@ import argparse
 import copy
 import numpy as np
 import os
+# -------- UNCOMMENT THIS LINE FOR MODEL TRAINING ON THE CPU --------
+# os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+# -------------------------------------------------------------------
 import tensorflow as tf
 
 from keras.callbacks import ModelCheckpoint, EarlyStopping
@@ -16,7 +19,6 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--difficulty_range", type=str, default="3-4_stars")
 parser.add_argument("--max_vram_mb", type=int, default=2048)
 parser.add_argument("--note_precision", type=int, default=2)
-parser.add_argument("--prediction_threshold", type=float, default=0.45)
 parser.add_argument("--sequence_length", type=int, default=64)
 args = parser.parse_args()
 
@@ -25,12 +27,11 @@ DATA_NOTE_PRECISION = args.note_precision
 GPU_MAX_VRAM = args.max_vram_mb
 MODEL_SEQUENCE_LENGTH = args.sequence_length
 MODEL_TARGET_DIFFICULTY = args.difficulty_range
-THRESHOLD = args.prediction_threshold
 
 
 # Prevent tensorflow from taking all VRAM from the GPU
 gpus = tf.config.experimental.list_physical_devices('GPU')
-    
+
 if gpus:
     try:
         tf.config.experimental.set_virtual_device_configuration(gpus[0], [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=GPU_MAX_VRAM)])
@@ -88,18 +89,18 @@ def main():
         model = tf.keras.models.load_model("checkpoint_model.keras")
     
     # Train the model using the test set for validation.
-    model.fit(
-        train_ds,
-        validation_data = test_ds,
-        epochs=100,
-        steps_per_epoch=500,
-        validation_steps=100,
-        callbacks=[checkpoint_callback, early_stop]
-    )
-    
-    model_code = f"{MODEL_TARGET_DIFFICULTY}-P{DATA_NOTE_PRECISION}-S{MODEL_SEQUENCE_LENGTH}"
-    
-    model.save(f"model-{model_code}.keras")
+    #model.fit(
+    #    train_ds,
+    #    validation_data = test_ds,
+    #    epochs=100,
+    #    steps_per_epoch=500,
+    #    validation_steps=100,
+    #    callbacks=[checkpoint_callback, early_stop]
+    #)
+    #
+    #model_code = f"{MODEL_TARGET_DIFFICULTY}-P{DATA_NOTE_PRECISION}-S{MODEL_SEQUENCE_LENGTH}"
+    #
+    #model.save(f"model-{model_code}.keras")
 
     
     # -------- Display feature importance --------
