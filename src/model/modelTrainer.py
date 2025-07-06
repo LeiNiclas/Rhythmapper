@@ -27,6 +27,7 @@ DATA_NOTE_PRECISION = args.note_precision
 GPU_MAX_VRAM = args.max_vram_mb
 MODEL_SEQUENCE_LENGTH = args.sequence_length
 MODEL_TARGET_DIFFICULTY = args.difficulty_range
+NUM_FEATURES = 15
 
 
 # Prevent tensorflow from taking all VRAM from the GPU
@@ -66,7 +67,6 @@ def main():
     
     # Build the model.
     sequence_length = MODEL_SEQUENCE_LENGTH
-    num_features = 6
     output_dim = 4
     
     model = None
@@ -84,23 +84,23 @@ def main():
     )
     
     if not os.path.exists("checkpoint_model.keras"):
-        model = build_lstm_model(input_shape=(sequence_length, num_features), output_dim=output_dim)
+        model = build_lstm_model(input_shape=(sequence_length, NUM_FEATURES), output_dim=output_dim)
     else:
         model = tf.keras.models.load_model("checkpoint_model.keras")
     
     # Train the model using the test set for validation.
-    #model.fit(
-    #    train_ds,
-    #    validation_data = test_ds,
-    #    epochs=100,
-    #    steps_per_epoch=500,
-    #    validation_steps=100,
-    #    callbacks=[checkpoint_callback, early_stop]
-    #)
-    #
-    #model_code = f"{MODEL_TARGET_DIFFICULTY}-P{DATA_NOTE_PRECISION}-S{MODEL_SEQUENCE_LENGTH}"
-    #
-    #model.save(f"model-{model_code}.keras")
+    model.fit(
+        train_ds,
+        validation_data = test_ds,
+        epochs=20,
+        steps_per_epoch=200,
+        validation_split=0.2,
+        callbacks=[checkpoint_callback, early_stop]
+    )
+    
+    model_code = f"{MODEL_TARGET_DIFFICULTY}-P{DATA_NOTE_PRECISION}-S{MODEL_SEQUENCE_LENGTH}-f{NUM_FEATURES}"
+    
+    model.save(f"model-{model_code}-F2.keras")
 
     
     # -------- Display feature importance --------

@@ -20,10 +20,11 @@ def main():
     
     run_beatmap_downloader = bool(config["run_beatmap_downloader"])
     run_beatmap_preprocessor = bool(config["run_beatmap_preprocessor"])
-    run_sequence_splitter = bool(config["run_sequence_splitter"])
-    run_mfcc_normalizer = bool(config["run_mfcc_normalizer"])
+    run_sequence_splitter_raw = bool(config["run_sequence_splitter_raw"])
+    run_sequence_splitter_normalized = bool(config["run_sequence_splitter_normalized"])
     run_model_trainer = bool(config["run_model_trainer"])
     run_level_generator = bool(config["run_level_generator"])
+    run_feature_stat_computation = bool(config["run_feature_stat_computation"])
 
     # Step 1: Download beatmaps (optional, num_beatmapsets = 0)
     if run_beatmap_downloader:
@@ -39,20 +40,29 @@ def main():
             "--note_precision", str(config["note_precision"])
         ], "Preprocess Beatmaps")
 
-    # Step 3: Split sequences
-    if run_sequence_splitter:
+    # Step 3: Split and save raw sequences (Unnormalized)
+    if run_sequence_splitter_raw:
         run_step([
             "python", "src/data_utils/dataSequenceSplitter.py",
-            "--sequence_length", str(config["sequence_length"])
-        ], "Split Sequences")
-
-    # Step 4: Normalize MFCCs
-    if run_mfcc_normalizer:
+            "--sequence_length", str(config["sequence_length"]),
+            "--normalize", "False"
+        ], "Split Sequences (raw)")
+    
+    # Step 4: Compute normalization stats
+    if run_feature_stat_computation:
         run_step([
-            "python", "src/data_utils/mfccNormalizer.py"
-        ], "Normalize MFFCs")
+            "python", "src/data_utils/featureNormalizer.py"
+        ], "Compute Feature Statistics")
+    
+    # Step 5: Split again with normalization
+    if run_sequence_splitter_normalized:
+        run_step([
+            "python", "src/data_utils/dataSequenceSplitter.py",
+            "--sequence_length", str(config["sequence_length"]),
+            "--normalize", "True"
+        ], "Split Sequences (normalized)")
 
-    # Step 5: Train model
+    # Step 6: Train model
     if run_model_trainer:
         run_step([
             "python", "-m", "src.model.modelTrainer",
@@ -62,7 +72,7 @@ def main():
             "--sequence_length", str(config["sequence_length"])
         ], "Train Model")
 
-    # Step 6: Generate level
+    # Step 7: Generate level
     if run_level_generator:
         run_step([
             "python", "src/model/levelGenerator.py",

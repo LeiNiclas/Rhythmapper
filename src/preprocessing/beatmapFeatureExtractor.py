@@ -153,14 +153,23 @@ def get_audio_features(audio_file_path : str, beat_timings : list[list]) -> list
     
     hop_length = 512
     
-    # Extract relevant audio features for the entire audio.
+    # -------- Feature extraction --------
     mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13, hop_length=hop_length).T
     onset_env = librosa.onset.onset_strength(y=y, sr=sr, hop_length=hop_length)
-    # chroma = librosa.feature.chroma_stft(y=y, sr=sr, hop_length=hop_length).T
-    # spec_contrast = librosa.feature.spectral_contrast(y=y, sr=sr, hop_length=hop_length).T
-    # zcr = librosa.feature.zero_crossing_rate(y=y, hop_length=hop_length).T
+    rms = librosa.feature.rms(y=y, hop_length=hop_length)[0]
+    spec_contrast = librosa.feature.spectral_contrast(y=y, sr=sr, hop_length=hop_length).T
+    zcr = librosa.feature.zero_crossing_rate(y=y, hop_length=hop_length).T
     
     features = []
+    
+    max_frame = min(
+        mfcc.shape[0],
+        len(onset_env),
+        len(rms),
+        spec_contrast.shape[0],
+        len(zcr)
+    )
+    # ------------------------------------
     
     # For each subbeat timing, extract the corresponding feature vector.
     for entry in beat_timings:
@@ -168,18 +177,15 @@ def get_audio_features(audio_file_path : str, beat_timings : list[list]) -> list
         
         # Convert timing in ms to the corresponding audio frame index.
         frame_idx = int((timing_ms / 1000) * sr / hop_length)
-        
-        # Clamp frame_idx to the valid range.
-        if frame_idx >= mfcc.shape[0]:
-            frame_idx = mfcc.shape[0] - 1
+        frame_idx = min(max(frame_idx, 0), max_frame - 1)
         
         # Concatenate selected features for this subbeat.
         feature_vector = np.concatenate([
             mfcc[frame_idx][:5],
-            [onset_env[frame_idx] if frame_idx < len(onset_env) else 0],
-            # chroma[frame_idx],
-            # spec_contrast[frame_idx],
-            # zcr[frame_idx]
+            [onset_env[frame_idx]],
+            [rms[frame_idx]],
+            spec_contrast[frame_idx, :6].flatten(),
+            zcr[frame_idx].flatten()
         ])
         
         features.append(feature_vector)

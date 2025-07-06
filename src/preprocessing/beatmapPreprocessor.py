@@ -40,17 +40,13 @@ def preprocess_beatmap(beatmapset_path : str, beatmap_ID : int, note_precision :
     )
     
     fmt = [
-        '%d',
-        '%.6f',
-        '%.6f',
-        '%.6f',
-        '%.6f',
-        '%.6f',
-        '%.6f',
-        '%d',
-        '%d',
-        '%d',
-        '%d'
+        '%d', # subbeat_idx
+        '%.6f', '%.6f', '%.6f', '%.6f', '%.6f', # MFCCs
+        '%.6f', # Onset
+        '%.6f', # rms
+        '%.6f', '%.6f', '%.6f', '%.6f', '%.6f', '%.6f', # Specular contrasts
+        '%.6f', # zcr
+        '%d', '%d', '%d', '%d' # Lanes
     ]
     
     normalized_merged_data = np.array(normalized_merged_data)
@@ -64,7 +60,7 @@ def preprocess_beatmap(beatmapset_path : str, beatmap_ID : int, note_precision :
         preprocess_file_path,
         normalized_merged_data,
         delimiter=',',
-        header="subbeat_idx,mfcc0,mfcc1,mfcc2,mfcc3,mfcc4,onset,lane0,lane1,lane2,lane3",
+        header="subbeat_idx,mfcc0,mfcc1,mfcc2,mfcc3,mfcc4,onset,rms,spec_con0,spec_con1,spec_con2,spec_con3,spec_con4,spec_con5,zcr,lane0,lane1,lane2,lane3",
         comments='',
         fmt=fmt
     )

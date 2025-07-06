@@ -74,5 +74,5 @@ def get_difficulty_dataset(sequences_root : str, difficulty : str, split : str =
     Returns:
         tf.data.Dataset: _A dataset for the specified difficulty and split._
     """
-    pattern = os.path.join(sequences_root, difficulty, split, f"{difficulty}_{split}_sequences_*.npy")
+    pattern = os.path.join(sequences_root, difficulty, split, f"*_seq_*.npy")
     return get_tf_dataset(pattern, batch_size=batch_size, shuffle_buffer=shuffle_buffer)

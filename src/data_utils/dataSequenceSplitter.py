@@ -3,14 +3,16 @@ import math
 import numpy as np
 import os
 import pandas as pd
-import shutil
 
 from glob import glob
 from sklearn.model_selection import train_test_split
 
+import featureNormalizer as fn
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--sequence_length", type=int, default=64)
+parser.add_argument("--normalize", type=str, default="True")
 args = parser.parse_args()
 
 
@@ -86,7 +88,7 @@ def split_train_test(sequences : np.ndarray, test_ratio : float = 0.2, random_st
     return train_test_split(sequences, test_size=test_ratio, random_state=random_state)
 
 
-def create_and_save_sequences_by_difficulty(preprocessed_root : str, sequence_length : int, out_dir : str, max_gb : float = 1.0, test_ratio :  float = 0.2) -> None:
+def create_and_save_sequences_by_difficulty(preprocessed_root : str, sequence_length : int, out_dir : str, max_gb : float = 1.0, test_ratio : float = 0.2, normalize : bool = True) -> None:
     """
     Split the data into multiple train and test .npy-files,
     each up to max_gb in size.
@@ -97,7 +99,10 @@ def create_and_save_sequences_by_difficulty(preprocessed_root : str, sequence_le
         out_dir (str): _The output directory for the output file names._
         max_gb (float, optional): _The maximum size in GB for each file._ Defaults to 1.0.
         test_ratio (float, optional): _Fraction of data to use for testing._ Defaults to 0.2.
+        normalize (bool, optional): _Whether or not to normalize audio feature data._ Defaults to True.
     """
+    normalizer = fn.FeatureNormalizer() if normalize else None
+    
     for difficulty_label in os.listdir(preprocessed_root):
         diff_dir = os.path.join(preprocessed_root, difficulty_label)
         
@@ -105,7 +110,8 @@ def create_and_save_sequences_by_difficulty(preprocessed_root : str, sequence_le
             continue
         
         csv_files = glob(os.path.join(diff_dir, "bm_*.csv"))
-        data = []
+        
+        print(len(csv_files))
         
         for csv_file in csv_files:
             try:
@@ -114,38 +120,35 @@ def create_and_save_sequences_by_difficulty(preprocessed_root : str, sequence_le
                 if df.empty:
                     continue
                 
-                data.append(df.values)
+                data = df.values
+                
+                # Drop subbeat_idx
+                if data.shape[1] == 19:
+                    data = data[:, 1:]
+                    
+                sequences = create_sequences(data=data, sequence_length=sequence_length)
+                
+                if sequences.size == 0:
+                    continue
+                
+                if normalize:
+                    sequences[:, :, :14] = normalizer.normalize(sequences[:, :, :14])
+                
+                # Save directly as chunked files
+                diff_out_dir = os.path.join(out_dir, difficulty_label)
+                train_dir = os.path.join(diff_out_dir, "train")
+                test_dir = os.path.join(diff_out_dir, "test")
+                
+                train_sequences, test_sequences = split_train_test(sequences=sequences, test_ratio=test_ratio)
+                
+                print(f"{os.path.basename(csv_file)} - Train: {len(train_sequences)}, Test: {len(test_sequences)}")
+                
+                save_sequences_chunked(train_sequences, train_dir, os.path.basename(csv_file).replace(".csv", "_train"))
+                save_sequences_chunked(test_sequences, test_dir, os.path.basename(csv_file).replace(".csv", "_test"))
+                
             except Exception:
                 continue
         
-        if not data:
-            continue
-        
-        all_data = np.concatenate(data, axis=0)
-        
-        # Create sequences for this difficulty
-        sequences = create_sequences(all_data, sequence_length=sequence_length)
-        
-        # -------- Normalization of MFCC columns --------
-        mfcc_cols = [1, 2, 3, 4, 5]
-        
-        for col in mfcc_cols:
-            mean = np.mean(sequences[:, :, col])
-            std = np.std(sequences[:, :, col])
-            sequences[:, :, col] = (sequences[:, :, col] - mean) / (std + 1e-8)
-        # -----------------------------------------------
-        
-        print(f"Total sequences for {difficulty_label}: {len(sequences)}")
-
-        # Split into train and test
-        train_sequences, test_sequences = split_train_test(sequences=sequences, test_ratio=test_ratio)
-        print(f"Train: {len(train_sequences)}, Test: {len(test_sequences)}")
-
-        # Save and split by max_gb
-        diff_out_dir = os.path.join(out_dir, difficulty_label)
-        split_and_save_sequences(train_sequences, os.path.join(diff_out_dir, "train"), f"{difficulty_label}_train_sequences", max_gb=max_gb)
-        split_and_save_sequences(test_sequences, os.path.join(diff_out_dir, "test"), f"{difficulty_label}_test_sequences", max_gb=max_gb)
-
 
 def split_and_save_sequences(sequences : np.ndarray, file_path : str, out_prefix : str, max_gb : float = 1.0) -> None:
     """
@@ -188,16 +191,38 @@ def split_and_save_sequences(sequences : np.ndarray, file_path : str, out_prefix
         print(f"Saved {fname} with shape {chunk.shape}")
 
 
+def save_sequences_chunked(sequences : np.ndarray, out_dir : str, base_name : str, chunk_size : int = 10000):
+    os.makedirs(out_dir, exist_ok=True)
+    total = len(sequences)
+    chunks = int(np.ceil(total / chunk_size))
+    
+    for i in range(chunks):
+        start = i * chunk_size
+        end = min((i + 1) * chunk_size, total)
+        chunk = sequences[start:end]
+        
+        chunk = chunk.astype(np.float32)
+        
+        f_name = f"{base_name}_seq_{i:03d}.npy"
+        np.save(os.path.join(out_dir, f_name), chunk)
+        
+        print(f"Saved {f_name} with shape {chunk.shape}")
+
+
 def main():
     preprocessed_root = "Z:\\Programs\\Python\\osumania-levelgen\\data\\preprocessed"
 
     print("Creating and saving sequences by difficulty (with splitting)...")
     
+    normalize = args.normalize.lower() == "true"
+    
     create_and_save_sequences_by_difficulty(
         preprocessed_root=preprocessed_root,
         sequence_length=args.sequence_length,
         out_dir=os.path.join(os.path.dirname(preprocessed_root), "sequences"),
-        max_gb=0.25
+        max_gb=0.5,
+        test_ratio=0.2,
+        normalize=normalize
     )
 
 
