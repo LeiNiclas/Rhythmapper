@@ -156,9 +156,7 @@ def get_audio_features(audio_file_path : str, beat_timings : list[list]) -> list
     # Extract relevant audio features for the entire audio.
     mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13, hop_length=hop_length).T
     onset_env = librosa.onset.onset_strength(y=y, sr=sr, hop_length=hop_length)
-    # chroma = librosa.feature.chroma_stft(y=y, sr=sr, hop_length=hop_length).T
-    # spec_contrast = librosa.feature.spectral_contrast(y=y, sr=sr, hop_length=hop_length).T
-    # zcr = librosa.feature.zero_crossing_rate(y=y, hop_length=hop_length).T
+    rms = librosa.feature.rms(y=y, hop_length=hop_length)[0]
     
     features = []
     
@@ -177,9 +175,7 @@ def get_audio_features(audio_file_path : str, beat_timings : list[list]) -> list
         feature_vector = np.concatenate([
             mfcc[frame_idx][:5],
             [onset_env[frame_idx] if frame_idx < len(onset_env) else 0],
-            # chroma[frame_idx],
-            # spec_contrast[frame_idx],
-            # zcr[frame_idx]
+            rms[frame_idx].flatten()
         ])
         
         features.append(feature_vector)
@@ -228,60 +224,11 @@ def get_merged_beatmap_data(beatmapset_path : str, beatmap_ID : int, note_precis
     
     # Merge beatmap timings and audio features into for each subbeat.
     for bt, feat in zip(beatmap_timings, audio_features):
-        # bt[0] = subbeat_idx
+        # bt[0] = subbeat_idx -> Drop this! Not needed for training.
         # bt[2:] = [lane0, ..., lane3]
-        merged_data.append([bt[0]] + list(feat) + list(bt[2:]))
+        merged_data.append(list(feat) + list(bt[2:]))
     
     if len(merged_data) == 0:
         return None
     
     return merged_data
-
-
-def visualize_data(normalized_merged_data):
-    """
-    Generate 2 plots showing the HitObject timing spread
-    and audio feature data over subbeats.
-
-    Args:
-        normalized_merged_data (_type_): _The normalized merged data of a given beatmap
-        containing HitObject timings and audio features._
-    """
-    data = np.array(normalized_merged_data)
-    subbeat_idx = data[:, 0]
-    mfccs = data[:, 2:7]
-    onset = data[:, 7]
-    lanes = data[:, 8:12]
-    
-    # -------- Plot HitObjects over subbeats --------
-    plt.figure(figsize=(12, 4))
-    
-    for lane in range(lanes.shape[1]):
-        plt.scatter(subbeat_idx[lanes[:, lane] == 1], [lane]*np.sum(lanes[:, lane] == 1), label=f'Lane {lane}', marker='|', s=100)
-    
-    plt.xlabel('Subbeat Index')
-    plt.yticks(range(4), [f'Lane {i}' for i in range(4)])
-    plt.title('Note Hitobjects Over Subbeats')
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
-    # -----------------------------------------------
-    
-    # -------- Plot audio features over subbeats --------
-    fig, axs = plt.subplots(1 + mfccs.shape[1], 1, figsize=(12, 8), sharex=True)
-    
-    axs[0].plot(subbeat_idx, onset, label="Onset strength")
-    axs[0].set_ylabel("Onset")
-    axs[0].set_title("Onset strength over Subbeats")
-    axs[0].legend()
-    
-    for i in range(mfccs.shape[1]):
-        axs[i+1].plot(subbeat_idx, mfccs[:, i], label=f"MFCC {i}")
-        axs[i+1].set_ylabel(f"MFCC {i}")
-        axs[i+1].legend()
-    
-    axs[-1].set_xlabel("Subbeat index")
-    plt.tight_layout()
-    plt.show()
-    # ---------------------------------------------------
-

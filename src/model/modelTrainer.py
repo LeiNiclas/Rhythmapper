@@ -40,8 +40,9 @@ if gpus:
 
 
 def split_X_y(batch):
-    # X: all columns except first [subbeat_idx] and last 4, y: last 4 columns.
-    return batch[:, :, 1:7], batch[:, :, 7:]
+    # X: all columns except last 4 columns.
+    # y: last 4 columns.
+    return batch[:, :, :7], batch[:, :, 7:]
 
 
 def main():
@@ -66,7 +67,7 @@ def main():
     
     # Build the model.
     sequence_length = MODEL_SEQUENCE_LENGTH
-    num_features = 6
+    num_features = 7
     output_dim = 4
     
     model = None
@@ -79,7 +80,7 @@ def main():
     
     early_stop = EarlyStopping(
         monitor="val_loss",
-        patience=5,
+        patience=10,
         restore_best_weights=True
     )
     
@@ -89,18 +90,18 @@ def main():
         model = tf.keras.models.load_model("checkpoint_model.keras")
     
     # Train the model using the test set for validation.
-    #model.fit(
-    #    train_ds,
-    #    validation_data = test_ds,
-    #    epochs=100,
-    #    steps_per_epoch=500,
-    #    validation_steps=100,
-    #    callbacks=[checkpoint_callback, early_stop]
-    #)
-    #
-    #model_code = f"{MODEL_TARGET_DIFFICULTY}-P{DATA_NOTE_PRECISION}-S{MODEL_SEQUENCE_LENGTH}"
-    #
-    #model.save(f"model-{model_code}.keras")
+    model.fit(
+        train_ds,
+        validation_data = test_ds,
+        epochs=100,
+        steps_per_epoch=500,
+        validation_steps=100,
+        callbacks=[checkpoint_callback, early_stop]
+    )
+    
+    model_code = f"{MODEL_TARGET_DIFFICULTY}-P{DATA_NOTE_PRECISION}-S{MODEL_SEQUENCE_LENGTH}"
+    
+    model.save(f"model-{model_code}.keras")
 
     
     # -------- Display feature importance --------
@@ -112,7 +113,7 @@ def main():
     
     importances = []
     
-    feature_names = ["mfcc0", "mfcc1", "mfcc2", "mfcc3", "mfcc4", "onset"]
+    feature_names = ["mfcc0", "mfcc1", "mfcc2", "mfcc3", "mfcc4", "onset", "rms"]
     
     for i in range(X_val.shape[-1]):
         X_permuted = copy.deepcopy(X_val)

@@ -1,9 +1,9 @@
 import argparse
+import json
 import math
 import numpy as np
 import os
 import pandas as pd
-import shutil
 
 from glob import glob
 from sklearn.model_selection import train_test_split
@@ -12,6 +12,9 @@ from sklearn.model_selection import train_test_split
 parser = argparse.ArgumentParser()
 parser.add_argument("--sequence_length", type=int, default=64)
 args = parser.parse_args()
+
+
+NORM_STATS_PATH = "Z:\\Programs\\Python\\osumania-levelgen\\feature_norm_stats.json"
 
 
 def load_all_preprocessed_csvs(preprocessed_root : str) -> np.ndarray:
@@ -98,6 +101,14 @@ def create_and_save_sequences_by_difficulty(preprocessed_root : str, sequence_le
         max_gb (float, optional): _The maximum size in GB for each file._ Defaults to 1.0.
         test_ratio (float, optional): _Fraction of data to use for testing._ Defaults to 0.2.
     """
+    stats = None
+    
+    with open(NORM_STATS_PATH, "r") as f:
+        stats = json.load(f)
+    
+    means = stats["means"]
+    stds = stats["stds"]
+    
     for difficulty_label in os.listdir(preprocessed_root):
         diff_dir = os.path.join(preprocessed_root, difficulty_label)
         
@@ -126,13 +137,11 @@ def create_and_save_sequences_by_difficulty(preprocessed_root : str, sequence_le
         # Create sequences for this difficulty
         sequences = create_sequences(all_data, sequence_length=sequence_length)
         
-        # -------- Normalization of MFCC columns --------
-        mfcc_cols = [1, 2, 3, 4, 5]
+        # -------- Feature normalization --------
+        feature_cols = [ i for i in range(7) ]
         
-        for col in mfcc_cols:
-            mean = np.mean(sequences[:, :, col])
-            std = np.std(sequences[:, :, col])
-            sequences[:, :, col] = (sequences[:, :, col] - mean) / (std + 1e-8)
+        for col in feature_cols:
+            sequences[:, :, col] = (sequences[:, :, col] - means[col]) / (stds[col] + 1e-6)
         # -----------------------------------------------
         
         print(f"Total sequences for {difficulty_label}: {len(sequences)}")
@@ -159,7 +168,7 @@ def split_and_save_sequences(sequences : np.ndarray, file_path : str, out_prefix
         max_gb (float, optional): _The maximum size in GB for each file._ Defaults to 1.0.
     """
     if os.path.exists(file_path):
-        # Remove all files in the directory
+        # Remove all files in the directory.
         for fname in os.listdir(file_path):
             fpath = os.path.join(file_path, fname)
             
@@ -168,7 +177,7 @@ def split_and_save_sequences(sequences : np.ndarray, file_path : str, out_prefix
     else:
         os.makedirs(file_path, exist_ok=True)
     
-    # Calculate bytes per sequence
+    # Calculate bytes per sequence.
     bytes_per_seq = sequences[0].nbytes
     seqs_per_file = int((max_gb * 1024**3) // bytes_per_seq)
     total_seqs = len(sequences)
@@ -197,7 +206,7 @@ def main():
         preprocessed_root=preprocessed_root,
         sequence_length=args.sequence_length,
         out_dir=os.path.join(os.path.dirname(preprocessed_root), "sequences"),
-        max_gb=0.25
+        max_gb=0.5
     )
 
 
