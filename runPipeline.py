@@ -20,8 +20,8 @@ def main():
     
     run_beatmap_downloader = bool(config["run_beatmap_downloader"])
     run_beatmap_preprocessor = bool(config["run_beatmap_preprocessor"])
+    run_feature_normalizer = bool(config["run_feature_normalizer"])
     run_sequence_splitter = bool(config["run_sequence_splitter"])
-    run_mfcc_normalizer = bool(config["run_mfcc_normalizer"])
     run_model_trainer = bool(config["run_model_trainer"])
     run_level_generator = bool(config["run_level_generator"])
 
@@ -39,18 +39,18 @@ def main():
             "--note_precision", str(config["note_precision"])
         ], "Preprocess Beatmaps")
 
-    # Step 3: Split sequences
+    # Step 3: Normalize features
+    if run_feature_normalizer:
+        run_step([
+            "python", "src/data_utils/featureNormalizer.py"
+        ], "Normalize Features")
+
+    # Step 4: Split sequences
     if run_sequence_splitter:
         run_step([
             "python", "src/data_utils/dataSequenceSplitter.py",
             "--sequence_length", str(config["sequence_length"])
         ], "Split Sequences")
-
-    # Step 4: Normalize MFCCs
-    if run_mfcc_normalizer:
-        run_step([
-            "python", "src/data_utils/mfccNormalizer.py"
-        ], "Normalize MFFCs")
 
     # Step 5: Train model
     if run_model_trainer:

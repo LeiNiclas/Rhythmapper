@@ -55,6 +55,7 @@ def get_tf_dataset(file_pattern : str, batch_size : int = 64, shuffle_buffer : i
     
     ds = ds.shuffle(shuffle_buffer)
     ds = ds.batch(batch_size)
+    ds = ds.repeat() # Repeat dataset so training does not get interrupted.
     ds = ds.prefetch(tf.data.AUTOTUNE)
     
     return ds

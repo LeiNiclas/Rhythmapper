@@ -7,4 +7,4 @@ generated/
 __pycache__
 
 checkpoint_model.keras
-mfcc_norm_stats.json
+feature_norm_stats.json
