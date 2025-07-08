@@ -14,7 +14,7 @@ parser.add_argument("--audio_start_ms", type=int, default=0)
 args = parser.parse_args()
 
 AUDIO_PATH = "Z:\\Programs\\Python\\osumania-levelgen\\data\\audio\\test_audio.mp3"
-MODEL_PATH = "Z:\\Programs\\Python\\osumania-levelgen\\models\\model-3-4_stars-P4-S128-V2.keras" # Best model up until now!
+MODEL_PATH = "Z:\\Programs\\Python\\osumania-levelgen\\models\\model-3-4_stars-P4-S128-V3.keras" # Best model up until now!
 NORM_STATS_PATH = "Z:\\Programs\\Python\\osumania-levelgen\\feature_norm_stats.json"
 
 AUDIO_BPM = args.audio_bpm

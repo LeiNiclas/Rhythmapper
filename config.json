@@ -2,7 +2,7 @@
     "difficulty_range": "3-4_stars",
     "download_beatmapsets": 1000,
     "note_precision": 4,
-    "prediction_threshold": 0.5,
+    "prediction_threshold": 0.475,
     "sequence_length": 128,
     "max_vram_mb": 4096,
 
