@@ -10,7 +10,7 @@ HIT_SFX_FILE_PATH = "Z:\\Programs\\Python\\osumania-levelgen\\src\\visualizer\\h
 # The hit SFX is royalty free.
 # Download: https://pixabay.com/sound-effects/electronic-closed-hat-11-stereo-100413/
 
-VISUALIZER_VERSION = "1.2"
+VISUALIZER_VERSION = "1.3"
 FPS = 144
 
 # -------- Colors --------
@@ -62,6 +62,8 @@ SCREEN_HEIGHT = 1024
 USE_AUTOPLAY = True
 
 JUDGEMENT_Y_POSITION = 850
+
+SCROLL_SPEED = 1
 # -------------------------
 
 
@@ -73,7 +75,7 @@ class Note():
         self.y_pos = -1000
     
     def update(self, current_timing_ms):
-        self.y_pos = current_timing_ms - self.timing_ms + JUDGEMENT_Y_POSITION
+        self.y_pos = SCROLL_SPEED * (current_timing_ms - self.timing_ms) + JUDGEMENT_Y_POSITION
 
     def draw(self, surface):
         # Shadow
@@ -136,11 +138,25 @@ def process_event(event : pygame.event.Event) -> int:
             keys_held[KEY_LANE_MAP[event.key]] = True
             return 1
         
+        global USE_AUTOPLAY
+        
         # Toggle autoplay.
         if event.key == pygame.K_TAB:
-            global USE_AUTOPLAY
             USE_AUTOPLAY = not USE_AUTOPLAY
             return 0
+
+        global SCROLL_SPEED
+        
+        # Change scrollspeed.
+        if event.key == pygame.K_F3:
+            SCROLL_SPEED -= 0.1
+            SCROLL_SPEED = max(SCROLL_SPEED, 0.5)
+            return 0
+        
+        if event.key == pygame.K_F4:
+            SCROLL_SPEED += 0.1
+            SCROLL_SPEED = min(SCROLL_SPEED, 3)
+            return
         
         return 0
     
