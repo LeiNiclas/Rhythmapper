@@ -9,8 +9,8 @@ HIT_SFX_FILE_PATH = "Z:\\Programs\\Python\\osumania-levelgen\\src\\visualizer\\h
 # The hit SFX is royalty free.
 # Download: https://pixabay.com/sound-effects/electronic-closed-hat-11-stereo-100413/
 
-VISUALIZER_VERSION = "1.0"
-FPS = 60
+VISUALIZER_VERSION = "1.1"
+FPS = 144
 
 # -------- Colors --------
 NOTE_L0_BASE_COL = (200, 150, 255)
@@ -39,6 +39,20 @@ BG_ACCENT_COL = (240, 240, 255)
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 # ------------------------
+
+# -------- Input --------
+KEY_LANE_MAP = {
+    pygame.K_d: 0,
+    pygame.K_f: 1,
+    pygame.K_j: 2,
+    pygame.K_k: 3
+}
+
+keys_held = [ False ] * 4
+last_pressed_times = [ 999 ] * 4
+
+KEYPRESS_FADE_DURATION = 0.2
+# -----------------------
 
 
 class Note():
@@ -98,6 +112,39 @@ def get_notes_from_generated(file_path : str):
     return notes
 
 
+def process_event(event : pygame.event.Event) -> int:
+    if event.type == QUIT:
+        return -1
+    
+    if event.type == pygame.KEYDOWN:
+        if event.key == pygame.K_ESCAPE:
+            return -1
+        
+        if event.key in KEY_LANE_MAP:
+            last_pressed_times[KEY_LANE_MAP[event.key]] = 0
+            keys_held[KEY_LANE_MAP[event.key]] = True
+    
+    if event.type == pygame.KEYUP:
+        if event.key in KEY_LANE_MAP:
+            keys_held[KEY_LANE_MAP[event.key]] = False
+    
+
+def draw_keypress_highlights(surface, lane_idx, fade_factor):
+    rect_x = lane_idx * 128
+    rect_y = 800
+    width = 128
+    height = 224
+    
+    highlight_surface = pygame.Surface((width, height), flags=pygame.SRCALPHA).convert_alpha()
+    
+    base_color = NOTE_BASE_COLS[lane_idx]
+    alpha = int(255 * fade_factor)
+    fade_color = (*base_color, alpha)
+    
+    highlight_surface.fill(fade_color)
+    surface.blit(highlight_surface, (rect_x, rect_y))
+
+
 def main():
     # -------- Pygame settings --------
     pygame.init()
@@ -112,8 +159,8 @@ def main():
 
     frame_clock = pygame.time.Clock()
 
-    SCREEN_WIDTH = 540
-    SCREEN_HEIGHT = 960
+    SCREEN_WIDTH = 512
+    SCREEN_HEIGHT = 1024
     # ---------------------------------
     
     quit_game = False
@@ -130,25 +177,26 @@ def main():
     pygame.mixer_music.play()
 
     
-    
     while not quit_game:
         for event in pygame.event.get():
-            if event.type == QUIT:
+            event_feedback = process_event(event=event)
+            
+            if event_feedback == -1:
                 pygame.quit()
                 quit_game = True
                 return
-
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    pygame.quit()
-                    quit_game = True
-                    return
         
         DISPLAY_SURFACE.fill(color=BG_COL)
         
         current_time_s = time.time() - start_time_s
         current_time_ms = current_time_s * 1000
         
+        delta_time = frame_clock.tick(FPS) / 1000
+        
+        for lane in range(4):
+            if not keys_held[lane]:
+                last_pressed_times[lane] += delta_time
+
         # Update all note positions
         for note in remaining_notes:
             note.update(current_time_ms)
@@ -194,9 +242,16 @@ def main():
             rect=((0, 800, SCREEN_WIDTH, SCREEN_HEIGHT))
         )
         
+        # Draw keypress highlights
+        for lane_idx in range(4):
+            time_since = last_pressed_times[lane_idx]
+            
+            if time_since < KEYPRESS_FADE_DURATION:
+                fade_factor = 1.0 - (time_since / KEYPRESS_FADE_DURATION)
+                draw_keypress_highlights(surface=DISPLAY_SURFACE, lane_idx=lane_idx, fade_factor=fade_factor)
+        
         pygame.display.update()
 
 
 if __name__ == "__main__":
     main()
-
