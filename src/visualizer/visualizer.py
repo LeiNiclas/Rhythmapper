@@ -9,8 +9,8 @@ HIT_SFX_FILE_PATH = "Z:\\Programs\\Python\\osumania-levelgen\\src\\visualizer\\h
 # The hit SFX is royalty free.
 # Download: https://pixabay.com/sound-effects/electronic-closed-hat-11-stereo-100413/
 
-VISUALIZER_VERSION = "1.0"
-FPS = 60
+VISUALIZER_VERSION = "1.3"
+FPS = 144
 
 # -------- Colors --------
 NOTE_L0_BASE_COL = (200, 150, 255)
@@ -40,6 +40,31 @@ BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 # ------------------------
 
+# -------- Input --------
+KEY_LANE_MAP = {
+    pygame.K_d: 0,
+    pygame.K_f: 1,
+    pygame.K_j: 2,
+    pygame.K_k: 3
+}
+
+keys_held = [ False ] * 4
+last_pressed_times = [ 999 ] * 4
+
+KEYPRESS_FADE_DURATION = 0.2
+# -----------------------
+
+# -------- General --------
+SCREEN_WIDTH = 512
+SCREEN_HEIGHT = 1024
+
+USE_AUTOPLAY = True
+
+JUDGEMENT_Y_POSITION = 850
+
+SCROLL_SPEED = 1
+# -------------------------
+
 
 class Note():
     def __init__(self, lane, timing_ms):
@@ -49,7 +74,7 @@ class Note():
         self.y_pos = -1000
     
     def update(self, current_timing_ms):
-        self.y_pos = current_timing_ms - self.timing_ms + 800
+        self.y_pos = SCROLL_SPEED * (current_timing_ms - self.timing_ms) + JUDGEMENT_Y_POSITION
 
     def draw(self, surface):
         # Shadow
@@ -96,6 +121,85 @@ def get_notes_from_generated(file_path : str):
         notes.append(note)
     
     return notes
+
+
+def process_event(event : pygame.event.Event) -> int:
+    if event.type == QUIT:
+        return -1
+    
+    if event.type == pygame.KEYDOWN:
+        if event.key == pygame.K_ESCAPE:
+            return -1
+        
+        # Reset keypress times.
+        if event.key in KEY_LANE_MAP:
+            last_pressed_times[KEY_LANE_MAP[event.key]] = 0
+            keys_held[KEY_LANE_MAP[event.key]] = True
+            return 1
+        
+        global USE_AUTOPLAY
+        
+        # Toggle autoplay.
+        if event.key == pygame.K_TAB:
+            USE_AUTOPLAY = not USE_AUTOPLAY
+            return 0
+
+        global SCROLL_SPEED
+        
+        # Change scrollspeed.
+        if event.key == pygame.K_F3:
+            SCROLL_SPEED -= 0.1
+            SCROLL_SPEED = max(SCROLL_SPEED, 0.5)
+            return 0
+        
+        if event.key == pygame.K_F4:
+            SCROLL_SPEED += 0.1
+            SCROLL_SPEED = min(SCROLL_SPEED, 3)
+            return
+        
+        return 0
+    
+    # Reset keys-held values for highlight fade-out.
+    if event.type == pygame.KEYUP:
+        if event.key in KEY_LANE_MAP:
+            keys_held[KEY_LANE_MAP[event.key]] = False
+            return 0
+
+        return 0
+
+
+def draw_keypress_highlights(surface : pygame.Surface, lane_idx : int, fade_factor : float) -> None:
+    rect_x = lane_idx * 128
+    rect_y = JUDGEMENT_Y_POSITION
+    width = 128
+    height = SCREEN_HEIGHT - rect_y
+    
+    highlight_surface = pygame.Surface((width, height), flags=pygame.SRCALPHA).convert_alpha()
+    
+    base_color = NOTE_BASE_COLS[lane_idx]
+    alpha = int(255 * fade_factor)
+    fade_color = (*base_color, alpha)
+    
+    highlight_surface.fill(fade_color)
+    surface.blit(highlight_surface, (rect_x, rect_y))
+
+
+def draw_judgement_line(surface : pygame.Surface) -> None:
+    # Judgement line.
+    pygame.draw.line(
+        surface=surface,
+        color=WHITE,
+        width=5,
+        start_pos=(0, JUDGEMENT_Y_POSITION),
+        end_pos=(540, JUDGEMENT_Y_POSITION)
+    )
+        
+    # Area below judgement line.
+    pygame.draw.rect(
+        surface=surface,
+        color=BG_ACCENT_COL,
+        rect=((0, JUDGEMENT_Y_POSITION, SCREEN_WIDTH, SCREEN_HEIGHT))
+    )
 
 
 def main():
@@ -199,4 +303,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
