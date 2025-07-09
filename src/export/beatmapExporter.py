@@ -11,38 +11,42 @@ def export_to_osz(audio_file_path : str, beatmap_file_path : str, export_path : 
     if beatmap_file_path.split('.')[-1] != "osu":
         raise ValueError(f"Error: Could not export beatmap. Beatmap file {beatmap_file_path} has invalid extension.")
     
-    # Create the export directory if it doesn't exist.
-    export_dir = os.path.dirname(export_path)
-    os.makedirs(export_dir, exist_ok=True)
-    os.makedirs(export_path, exist_ok=True)
-
     beatmap_name = os.path.basename(beatmap_file_path).replace(".osu", "")
     audio_file_name = os.path.basename(audio_file_path)
     
-    create_osu_file_template(
+    temp_dir = os.path.join(export_path, f"{beatmap_name}_temp")
+    os.makedirs(temp_dir, exist_ok=True)
+    
+    difficulty_name = create_osu_file_template(
         audio_file_name=audio_file_name,
         beatmap_file_path=beatmap_file_path,
-        destination_file_path=export_path,
+        destination_file_path=temp_dir,
         metadata=metadata
     )
     
-    archive_path = os.path.join(export_path, f"{beatmap_name}_exported")
+    shutil.copy(audio_file_path, os.path.join(temp_dir, audio_file_name))
+
+    archive_base = os.path.join(export_path, f"{beatmap_name}_exported")
+    shutil.make_archive(base_name=archive_base, format='zip', root_dir=temp_dir)
     
-    shutil.copy(audio_file_path, export_path)
-    shutil.make_archive(base_name=archive_path, format='zip', base_dir=export_path, root_dir=export_path)
-    
-    os.remove(os.path.join(export_path, f"{beatmap_name}.osu"))
-    os.remove(os.path.join(export_path, audio_file_name))
+    shutil.rmtree(temp_dir)
     
     # Rename the .zip file to .osz.
-    os.rename(os.path.join(export_path, f"{beatmap_name}_exported.zip"), os.path.join(export_path, f"{beatmap_name}.osz"))
+    os.rename(f"{archive_base}.zip", os.path.join(export_path, f"{beatmap_name}.osz"))
 
 
-def create_osu_file_template(audio_file_name : str, beatmap_file_path : str, destination_file_path : str, metadata : dict):
+def create_osu_file_template(audio_file_name : str, beatmap_file_path : str, destination_file_path : str, metadata : dict) -> str:
     hitobjects = None
     
     with open(beatmap_file_path, "r") as f:
         hitobjects = f.readlines()
+    
+    title = metadata["title"]
+    artist = metadata["artist"]
+    difficulty = metadata["difficulty_name"]
+    audio_start_timing = int(metadata["audio_start_ms"])
+    audio_bpm = float(metadata["audio_bpm"])
+    audio_time_signature = int(metadata["audio_time_signature"])
     
     osu_file_contents = "osu file format v14\n\n"
     
@@ -65,12 +69,12 @@ def create_osu_file_template(audio_file_name : str, beatmap_file_path : str, des
     osu_file_contents += "TimelineZoom: 1\n\n"
     
     osu_file_contents += "[Metadata]\n"
-    osu_file_contents += f"Title:{metadata['title']}\n"
-    osu_file_contents += f"TitleUnicode:{metadata['title']}\n"
-    osu_file_contents += f"Artist:{metadata['artist']}\n"
-    osu_file_contents += f"ArtistUnicode:{metadata['artist']}\n"
-    osu_file_contents += "Creator:osu!-mania-gen-AI\n"
-    osu_file_contents += f"Version:{metadata['difficulty_name']}\n"
+    osu_file_contents += f"Title:{title}\n"
+    osu_file_contents += f"TitleUnicode:{title}\n"
+    osu_file_contents += f"Artist:{artist}\n"
+    osu_file_contents += f"ArtistUnicode:{artist}\n"
+    osu_file_contents += "Creator:osu-mania-gen-AI\n"
+    osu_file_contents += f"Version:{difficulty}\n"
     osu_file_contents += "Source:\n"
     osu_file_contents += "Tags:\n"
     osu_file_contents += "BeatmapID:0\n"
@@ -95,15 +99,17 @@ def create_osu_file_template(audio_file_name : str, beatmap_file_path : str, des
     osu_file_contents += "//Storyboard Sound Samples\n\n"
     
     osu_file_contents += "[TimingPoints]\n"
-    osu_file_contents += f"{metadata['audio_start_ms']},{60_000 / float(metadata['audio_bpm'])},{metadata['audio_time_signature']},0,0,100,1,0\n\n"
+    osu_file_contents += f"{audio_start_timing},{60_000 / audio_bpm},{audio_time_signature},0,0,100,1,0\n\n"
     
     osu_file_contents += "[HitObjects]\n"
     
     for hitobject in hitobjects:
         osu_file_contents += hitobject + "\n"
 
-    beatmap_name_with_extension = os.path.basename(beatmap_file_path)
+    beatmap_name = f"{artist} - {title} (osu-mania-gen-AI) [{difficulty}].osu"
 
-    with open(os.path.join(destination_file_path, beatmap_name_with_extension), "x") as f:
+    with open(os.path.join(destination_file_path, beatmap_name), "x") as f:
         f.write(osu_file_contents)
+    
+    return beatmap_name
 
