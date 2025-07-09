@@ -4,7 +4,7 @@ This is an experimental project aiming to create osu!-mania beatmaps using an LS
 
 
 ## 📁 Directory structure
-```bash
+```
 root
 |-- config_generation.json     # Stores all values relevant to level generation and the visualizer.
 |-- config_model.json          # Stores all model and training-specific values.
