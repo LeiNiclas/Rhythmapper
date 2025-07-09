@@ -7,5 +7,7 @@
     "generation_file_name": "GUI-generated",
     "audio_file_path": "Z:/Programs/Python/osumania-levelgen/generation/audio/test_audio.mp3",
     "visualizer_beatmap_path": "Z:/Programs/Python/osumania-levelgen/generation/generated8-GQ.osu",
-    "visualizer_audio_path": "Z:/Programs/Python/osumania-levelgen/generation/audio/test_audio.mp3"
+    "visualizer_audio_path": "Z:/Programs/Python/osumania-levelgen/generation/audio/test_audio.mp3",
+    "file_to_export_path": "",
+    "export_destionation_path": ""
 }

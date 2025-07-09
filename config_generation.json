@@ -3,5 +3,6 @@
     "audio_start_ms": 124,
     "run_level_generator": true,
     "run_visualizer": true,
-    "visualizer_use_last_gen": true
+    "visualizer_use_last_gen": true,
+    "export_format": ".osu"
 }
