@@ -28,6 +28,7 @@ DIFFICULTY_OPTIONS = [ "0-1_stars", "1-2_stars", "2-3_stars", "3-4_stars", "4-5_
 GUI_VERSION = "1.2"
 TK_THEME = "clam"
 
+local_vars = {}
 
 def try_get(v):
     try:
@@ -240,16 +241,24 @@ class ConfigEditor:
         # -------- Path settings --------
         self.add_header(self.export_frame, 0, "Export paths")
         
-        self.add_file_entry(self.export_frame, "Beatmap to export:", "file_to_export_path")
-        self.add_path_entry(self.export_frame, "Path to save export to:", "export_destionation_path")
+        self.add_file_entry(self.export_frame, "Beatmap to export:", "beatmap_path", local_var=True)
+        self.add_file_entry(self.export_frame, "Audio file of Beatmap:", "audio_file_path", local_var=True)
+        self.add_path_entry(self.export_frame, "Path to save export to:", "export_destionation_path", local_var=True)
         # -------------------------------
         
-        self.add_separator(self.export_frame, 3)
+        self.add_separator(self.export_frame, 4)
         
         # -------- Export settings --------
-        self.add_header(self.export_frame, 4, "Export settings")
+        self.add_header(self.export_frame, 5, "Metadata")
         
-        self.add_dropdown(self.export_frame, "Export format:", "export_format", [".osu"], config=self.generation_config)
+        self.add_float_entry(self.export_frame, "Audio BPM:", "audio_bpm", local_var=True)
+        self.add_int_entry(self.export_frame, "Audio Start Time (ms):", "audio_start_ms", local_var=True)
+        self.add_int_entry(self.export_frame, "Audio Time Signature ([4]/4 | [3]/4):", "audio_time_signature", local_var=True)
+        self.add_str_entry(self.export_frame, "Audio Title:", "title", local_var=True)
+        self.add_str_entry(self.export_frame, "Artist:", "artist", local_var=True)
+        self.add_str_entry(self.export_frame, "Difficulty Name:", "difficulty_name", local_var=True)
+        
+        self.add_dropdown(self.export_frame, "Export format:", "export_format", [".osz"], config=self.generation_config)
         # Maybe add more formats in the future.
         # ---------------------------------
 
@@ -267,7 +276,7 @@ class ConfigEditor:
         ttk.Separator(frame, orient="horizontal").grid(row=row, column=0, columnspan=3, sticky="ew", pady=[30, 0])
 
 
-    def add_path_entry(self, frame : ttk.Frame, label : str, key : str) -> None:
+    def add_path_entry(self, frame : ttk.Frame, label : str, key : str, local_var : bool = False) -> None:
         row = frame.grid_size()[1]
         ttk.Label(frame, text=label).grid(row=row, column=0, sticky="w", pady=2, padx=5)
         var = tk.StringVar(value=self.paths_config.get(key, ""))
@@ -275,11 +284,14 @@ class ConfigEditor:
         entry.grid(row=row, column=1, sticky="ew", pady=2, padx=5)
         browse_btn = ttk.Button(frame, text="Browse", command=lambda: var.set(filedialog.askdirectory()))
         browse_btn.grid(row=row, column=2, sticky="ew", padx=5)
+        
+        if local_var:
+            local_vars[key] = var.get()
+        else:
+            self.paths_config[key] = var
 
-        self.paths_config[key] = var
 
-
-    def add_file_entry(self, frame : ttk.Frame, label : str, key : str) -> None:
+    def add_file_entry(self, frame : ttk.Frame, label : str, key : str, local_var : bool = False) -> None:
         row = frame.grid_size()[1]
         ttk.Label(frame, text=label).grid(row=row, column=0, sticky="w", pady=2, padx=5)
         var = tk.StringVar(value=self.paths_config.get(key, ""))
@@ -288,7 +300,10 @@ class ConfigEditor:
         browse_btn = ttk.Button(frame, text="Browse", command=lambda: var.set(filedialog.askopenfilename()))
         browse_btn.grid(row=row, column=2, sticky="ew", padx=5)
 
-        self.paths_config[key] = var
+        if local_var:
+            local_vars[key] = var.get()
+        else:
+            self.paths_config[key] = var
 
 
     def add_dropdown(self, frame : ttk.Frame, label : str, key : str, options, config = None) -> None:
@@ -310,37 +325,46 @@ class ConfigEditor:
         self.model_config[key] = var
 
 
-    def add_float_entry(self, frame : ttk.Frame, label : str, key, config=None) -> None:
+    def add_float_entry(self, frame : ttk.Frame, label : str, key : str, local_var : bool = False, config=None) -> None:
         row = frame.grid_size()[1]
         cfg = config or self.model_config
         ttk.Label(frame, text=label).grid(row=row, column=0, sticky="w", pady=2, padx=5)
         var = tk.DoubleVar(value=cfg.get(key, 0.0))
         ttk.Entry(frame, textvariable=var).grid(row=row, column=1, sticky="w", pady=2, padx=5)
         
-        cfg[key] = var
+        if local_var:
+            local_vars[key] = var.get()
+        else:
+            cfg[key] = var
 
 
-    def add_int_entry(self, frame : ttk.Frame, label : str, key, config=None) -> None:
+    def add_int_entry(self, frame : ttk.Frame, label : str, key : str, local_var : bool = False, config=None) -> None:
         row = frame.grid_size()[1]
         cfg = config or self.model_config
         ttk.Label(frame, text=label).grid(row=row, column=0, sticky="w", pady=2, padx=5)
         var = tk.IntVar(value=cfg.get(key, 0))
         ttk.Entry(frame, textvariable=var).grid(row=row, column=1, sticky="w", pady=2, padx=5)
         
-        cfg[key] = var
+        if local_var:
+            local_vars[key] = var.get()
+        else:
+            cfg[key] = var
 
 
-    def add_str_entry(self, frame : ttk.Frame, label : str, key, config=None) -> None:
+    def add_str_entry(self, frame : ttk.Frame, label : str, key : str, local_var : bool = False, config=None) -> None:
         row = frame.grid_size()[1]
         cfg = config or self.model_config
         ttk.Label(frame, text=label).grid(row=row, column=0, sticky="w", pady=2, padx=5)
         var = tk.StringVar(value=cfg.get(key, ""))
         ttk.Entry(frame, textvariable=var).grid(row=row, column=1, sticky="w", pady=2, padx=5)
         
-        cfg[key] = var
+        if local_var:
+            local_vars[key] = var.get()
+        else:
+            cfg[key] = var
 
 
-    def add_checkbox(self, frame : ttk.Frame, label : str, key, config) -> tk.BooleanVar:
+    def add_checkbox(self, frame : ttk.Frame, label : str, key : str, config) -> tk.BooleanVar:
         row = frame.grid_size()[1]
         var = tk.BooleanVar(value=config.get(key, False))
         cb = tk.Checkbutton(
