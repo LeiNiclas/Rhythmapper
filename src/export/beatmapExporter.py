@@ -8,12 +8,13 @@ def export_to_osz(audio_file_path : str, beatmap_file_path : str, export_path : 
         raise ValueError(f"Error: Could not export beatmap. Audio file {audio_file_path} has invalid extension.")
     
     # Check validty of beatmap file extension.
-    if beatmap_file_path.split('.')[-1] is not "osu":
+    if beatmap_file_path.split('.')[-1] != "osu":
         raise ValueError(f"Error: Could not export beatmap. Beatmap file {beatmap_file_path} has invalid extension.")
     
     # Create the export directory if it doesn't exist.
     export_dir = os.path.dirname(export_path)
     os.makedirs(export_dir, exist_ok=True)
+    os.makedirs(export_path, exist_ok=True)
 
     beatmap_name = os.path.basename(beatmap_file_path).replace(".osu", "")
     audio_file_name = os.path.basename(audio_file_path)
@@ -21,15 +22,20 @@ def export_to_osz(audio_file_path : str, beatmap_file_path : str, export_path : 
     create_osu_file_template(
         audio_file_name=audio_file_name,
         beatmap_file_path=beatmap_file_path,
-        destination_file_path=export_dir,
+        destination_file_path=export_path,
         metadata=metadata
     )
     
+    archive_path = os.path.join(export_path, f"{beatmap_name}_exported")
+    
     shutil.copy(audio_file_path, export_path)
-    shutil.make_archive(base_name=f"{beatmap_name}_exported", format='zip', root_dir=export_dir)
+    shutil.make_archive(base_name=archive_path, format='zip', base_dir=export_path, root_dir=export_path)
+    
+    os.remove(os.path.join(export_path, f"{beatmap_name}.osu"))
+    os.remove(os.path.join(export_path, audio_file_name))
     
     # Rename the .zip file to .osz.
-    os.rename(os.path.join(export_dir, f"{beatmap_name}_exported.zip"), os.path.join(export_dir, f"{beatmap_name}.osz"))
+    os.rename(os.path.join(export_path, f"{beatmap_name}_exported.zip"), os.path.join(export_path, f"{beatmap_name}.osz"))
 
 
 def create_osu_file_template(audio_file_name : str, beatmap_file_path : str, destination_file_path : str, metadata : dict):
@@ -89,7 +95,7 @@ def create_osu_file_template(audio_file_name : str, beatmap_file_path : str, des
     osu_file_contents += "//Storyboard Sound Samples\n\n"
     
     osu_file_contents += "[TimingPoints]\n"
-    osu_file_contents += f"{metadata['audio_start_ms']},{60_000 / metadata['audio_bpm']},{metadata['audio_time_signature']},0,0,100,1,0\n\n"
+    osu_file_contents += f"{metadata['audio_start_ms']},{60_000 / float(metadata['audio_bpm'])},{metadata['audio_time_signature']},0,0,100,1,0\n\n"
     
     osu_file_contents += "[HitObjects]\n"
     
@@ -97,7 +103,7 @@ def create_osu_file_template(audio_file_name : str, beatmap_file_path : str, des
         osu_file_contents += hitobject + "\n"
 
     beatmap_name_with_extension = os.path.basename(beatmap_file_path)
-    
-    with open(os.path.join(destination_file_path, beatmap_name_with_extension), "w") as f:
+
+    with open(os.path.join(destination_file_path, beatmap_name_with_extension), "x") as f:
         f.write(osu_file_contents)
 

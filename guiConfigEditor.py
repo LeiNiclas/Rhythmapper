@@ -4,6 +4,8 @@ import tkinter as tk
 import subprocess
 import sys
 
+import src.export.beatmapExporter as be
+
 from tkinter import filedialog, messagebox, ttk
 
 # -------- Config paths --------
@@ -144,7 +146,7 @@ class ConfigEditor:
         ttk.Button(btn_frame, text="Cancel", command=sys.exit).grid(row=0, column=0, padx=50)
         ttk.Button(btn_frame, text="Save & Exit", command=self.save_and_quit).grid(row=0, column=1, padx=5)
         ttk.Button(btn_frame, text="Save & Run", command=self.save_and_run).grid(row=0, column=2, padx=5)
-        ttk.Button(btn_frame, text="Export", command=self.save_and_quit).grid(row=0, column=3, padx=[5, 50])
+        ttk.Button(btn_frame, text="Export", command=self.export).grid(row=0, column=3, padx=[5, 50])
         # Export function is to be implemented.
 
 
@@ -241,9 +243,9 @@ class ConfigEditor:
         # -------- Path settings --------
         self.add_header(self.export_frame, 0, "Export paths")
         
-        self.add_file_entry(self.export_frame, "Beatmap to export:", "beatmap_path", local_var=True)
-        self.add_file_entry(self.export_frame, "Audio file of Beatmap:", "audio_file_path", local_var=True)
-        self.add_path_entry(self.export_frame, "Path to save export to:", "export_destionation_path", local_var=True)
+        self.export_beatmap_file_path = self.add_file_entry(self.export_frame, "Beatmap to export:", "beatmap_path", )
+        self.export_audio_file_path = self.add_file_entry(self.export_frame, "Audio file of Beatmap:", "audio_file_path", )
+        self.export_destination_dir = self.add_path_entry(self.export_frame, "Path to save export to:", "export_destionation_path", )
         # -------------------------------
         
         self.add_separator(self.export_frame, 4)
@@ -251,14 +253,14 @@ class ConfigEditor:
         # -------- Export settings --------
         self.add_header(self.export_frame, 5, "Metadata")
         
-        self.add_float_entry(self.export_frame, "Audio BPM:", "audio_bpm", local_var=True)
-        self.add_int_entry(self.export_frame, "Audio Start Time (ms):", "audio_start_ms", local_var=True)
-        self.add_int_entry(self.export_frame, "Audio Time Signature ([4]/4 | [3]/4):", "audio_time_signature", local_var=True)
-        self.add_str_entry(self.export_frame, "Audio Title:", "title", local_var=True)
-        self.add_str_entry(self.export_frame, "Artist:", "artist", local_var=True)
-        self.add_str_entry(self.export_frame, "Difficulty Name:", "difficulty_name", local_var=True)
+        self.export_audio_bpm = self.add_float_entry(self.export_frame, "Audio BPM:", "audio_bpm", )
+        self.export_audio_start_time_ms = self.add_int_entry(self.export_frame, "Audio Start Time (ms):", "audio_start_ms", )
+        self.export_audio_time_signature = self.add_int_entry(self.export_frame, "Audio Time Signature ([4]/4 | [3]/4):", "audio_time_signature", )
+        self.export_audio_title = self.add_str_entry(self.export_frame, "Audio Title:", "title", )
+        self.export_audio_artist = self.add_str_entry(self.export_frame, "Artist:", "artist", )
+        self.export_difficulty_name = self.add_str_entry(self.export_frame, "Difficulty Name:", "difficulty_name", )
         
-        self.add_dropdown(self.export_frame, "Export format:", "export_format", [".osz"], config=self.generation_config)
+        self.export_format = self.add_dropdown(self.export_frame, "Export format:", "export_format", [".osz"], config=self.generation_config)
         # Maybe add more formats in the future.
         # ---------------------------------
 
@@ -276,7 +278,7 @@ class ConfigEditor:
         ttk.Separator(frame, orient="horizontal").grid(row=row, column=0, columnspan=3, sticky="ew", pady=[30, 0])
 
 
-    def add_path_entry(self, frame : ttk.Frame, label : str, key : str, local_var : bool = False) -> None:
+    def add_path_entry(self, frame : ttk.Frame, label : str, key : str) -> ttk.Entry:
         row = frame.grid_size()[1]
         ttk.Label(frame, text=label).grid(row=row, column=0, sticky="w", pady=2, padx=5)
         var = tk.StringVar(value=self.paths_config.get(key, ""))
@@ -285,13 +287,11 @@ class ConfigEditor:
         browse_btn = ttk.Button(frame, text="Browse", command=lambda: var.set(filedialog.askdirectory()))
         browse_btn.grid(row=row, column=2, sticky="ew", padx=5)
         
-        if local_var:
-            local_vars[key] = var.get()
-        else:
-            self.paths_config[key] = var
+        self.paths_config[key] = var
+        return entry
 
 
-    def add_file_entry(self, frame : ttk.Frame, label : str, key : str, local_var : bool = False) -> None:
+    def add_file_entry(self, frame : ttk.Frame, label : str, key : str) -> ttk.Entry:
         row = frame.grid_size()[1]
         ttk.Label(frame, text=label).grid(row=row, column=0, sticky="w", pady=2, padx=5)
         var = tk.StringVar(value=self.paths_config.get(key, ""))
@@ -299,21 +299,22 @@ class ConfigEditor:
         entry.grid(row=row, column=1, sticky="ew", pady=2, padx=5)
         browse_btn = ttk.Button(frame, text="Browse", command=lambda: var.set(filedialog.askopenfilename()))
         browse_btn.grid(row=row, column=2, sticky="ew", padx=5)
-
-        if local_var:
-            local_vars[key] = var.get()
-        else:
-            self.paths_config[key] = var
+        
+        self.paths_config[key] = var
+        return entry
 
 
-    def add_dropdown(self, frame : ttk.Frame, label : str, key : str, options, config = None) -> None:
+    def add_dropdown(self, frame : ttk.Frame, label : str, key : str, options, config = None) -> ttk.Combobox:
         cfg = config or self.model_config
         row = frame.grid_size()[1]
         ttk.Label(frame, text=label).grid(row=row, column=0, sticky="w", pady=2, padx=5)
         var = tk.StringVar(value=cfg.get(key, options[0]))
-        ttk.Combobox(frame, textvariable=var, values=options, state="readonly").grid(row=row, column=1, sticky="w", pady=2, padx=5)
+        cbb = ttk.Combobox(frame, textvariable=var, values=options, state="readonly")
+        cbb.grid(row=row, column=1, sticky="w", pady=2, padx=5)
         
         cfg[key] = var
+
+        return cbb 
 
 
     def add_spinbox(self, frame : ttk.Frame, label : str, key, from_, to) -> None:
@@ -325,43 +326,40 @@ class ConfigEditor:
         self.model_config[key] = var
 
 
-    def add_float_entry(self, frame : ttk.Frame, label : str, key : str, local_var : bool = False, config=None) -> None:
+    def add_float_entry(self, frame : ttk.Frame, label : str, key : str, config=None) -> ttk.Entry:
         row = frame.grid_size()[1]
         cfg = config or self.model_config
         ttk.Label(frame, text=label).grid(row=row, column=0, sticky="w", pady=2, padx=5)
         var = tk.DoubleVar(value=cfg.get(key, 0.0))
-        ttk.Entry(frame, textvariable=var).grid(row=row, column=1, sticky="w", pady=2, padx=5)
+        entry = ttk.Entry(frame, textvariable=var)
+        entry.grid(row=row, column=1, sticky="w", pady=2, padx=5)
         
-        if local_var:
-            local_vars[key] = var.get()
-        else:
-            cfg[key] = var
+        cfg[key] = var
+        return entry
 
 
-    def add_int_entry(self, frame : ttk.Frame, label : str, key : str, local_var : bool = False, config=None) -> None:
+    def add_int_entry(self, frame : ttk.Frame, label : str, key : str, config=None) -> ttk.Entry:
         row = frame.grid_size()[1]
         cfg = config or self.model_config
         ttk.Label(frame, text=label).grid(row=row, column=0, sticky="w", pady=2, padx=5)
         var = tk.IntVar(value=cfg.get(key, 0))
-        ttk.Entry(frame, textvariable=var).grid(row=row, column=1, sticky="w", pady=2, padx=5)
+        entry = ttk.Entry(frame, textvariable=var)
+        entry.grid(row=row, column=1, sticky="w", pady=2, padx=5)
         
-        if local_var:
-            local_vars[key] = var.get()
-        else:
-            cfg[key] = var
+        cfg[key] = var
+        return entry
 
 
-    def add_str_entry(self, frame : ttk.Frame, label : str, key : str, local_var : bool = False, config=None) -> None:
+    def add_str_entry(self, frame : ttk.Frame, label : str, key : str, config=None) -> ttk.Entry:
         row = frame.grid_size()[1]
         cfg = config or self.model_config
         ttk.Label(frame, text=label).grid(row=row, column=0, sticky="w", pady=2, padx=5)
         var = tk.StringVar(value=cfg.get(key, ""))
-        ttk.Entry(frame, textvariable=var).grid(row=row, column=1, sticky="w", pady=2, padx=5)
+        entry = ttk.Entry(frame, textvariable=var)
+        entry.grid(row=row, column=1, sticky="w", pady=2, padx=5)
         
-        if local_var:
-            local_vars[key] = var.get()
-        else:
-            cfg[key] = var
+        cfg[key] = var
+        return entry
 
 
     def add_checkbox(self, frame : ttk.Frame, label : str, key : str, config) -> tk.BooleanVar:
@@ -378,6 +376,34 @@ class ConfigEditor:
 
         config[key] = var
         return var
+
+
+    def export(self) -> None:
+        bm_fp = self.export_beatmap_file_path.get()
+        a_fp = self.export_audio_file_path.get()
+        e_dd = self.export_destination_dir.get()
+        
+        bpm = self.export_audio_bpm.get()
+        start_time = self.export_audio_start_time_ms.get()
+        time_signature = self.export_audio_time_signature.get()
+        title = self.export_audio_title.get()
+        artist = self.export_audio_artist.get()
+        difficulty = self.export_difficulty_name.get()
+        fmt = self.export_format.get()
+        
+        metadata = {
+            "audio_bpm": bpm,
+            "audio_start_ms": start_time,
+            "audio_time_signature": time_signature,
+            "title": title,
+            "artist": artist,
+            "difficulty_name": difficulty
+        }
+        
+        if fmt == ".osz":
+            be.export_to_osz(a_fp, bm_fp, e_dd, metadata=metadata)
+        else:
+            messagebox.showerror("Error", f"Beatmaps can not yet be converted to {fmt}-format.")
 
 
     def save_all(self) -> None:
