@@ -1,14 +1,21 @@
+import argparse
 import glob
 import json
 import numpy as np
+import os
 import pandas as pd
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--input_dir", type=str, default=os.path.join(os.getcwd(), "data", "preprocessed"))
+args = parser.parse_args()
+
 
 
 if __name__ == "__main__":
     feature_cols = [ i for i in range(7) ]
     all_data = []
     
-    for f_name in glob.glob(r"Z:\Programs\Python\osumania-levelgen\data\preprocessed\**\bm_*.csv", recursive=True):
+    for f_name in glob.glob(args.input_dir + r"\**\bm_*.csv", recursive=True):
         df = pd.read_csv(f_name)
         all_data.append(df.values)
     

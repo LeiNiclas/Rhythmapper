@@ -8,6 +8,8 @@ import os
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--note_precision", type=int, default=2)
+parser.add_argument("--input_dir", type=str, default=os.path.join(os.getcwd(), "data", "raw"))
+parser.add_argument("--output_dir", type=str, default=os.path.join(os.getcwd(), "data", "preprocessed"))
 args = parser.parse_args()
 
 
@@ -32,9 +34,8 @@ def preprocess_beatmap(beatmapset_path : str, beatmap_ID : int, note_precision :
         return
     
     # Construct the path to the preprocessed data folder.
-    preprocess_file_path = os.path.join(
-        os.path.dirname(os.path.dirname(beatmapset_path)),
-        "preprocessed",
+    preprocessed_file_path = os.path.join(
+        args.output_dir,
         difficulty_label,
         f"bm_{beatmap_ID}.csv"
     )
@@ -49,12 +50,12 @@ def preprocess_beatmap(beatmapset_path : str, beatmap_ID : int, note_precision :
     normalized_merged_data = np.array(normalized_merged_data)
     
     if normalized_merged_data.shape[1] != len(fmt):
-        print(f"Column mismatch for {preprocess_file_path}: {normalized_merged_data.shape[1]} columns found.")
+        print(f"Column mismatch for {preprocessed_file_path}: {normalized_merged_data.shape[1]} columns found.")
         return
     
     # Save data to a csv file.
     np.savetxt(
-        preprocess_file_path,
+        preprocessed_file_path,
         normalized_merged_data,
         delimiter=',',
         header="mfcc0,mfcc1,mfcc2,mfcc3,mfcc4,onset,rms,lane0,lane1,lane2,lane3",
@@ -70,7 +71,7 @@ def preprocess_all_raw_beatmapsets(raw_beatmapsets_data_path : str, note_precisi
     os.system('cls' if os.name == 'nt' else 'clear')
     
     
-    preprocessed_root = os.path.join(os.path.dirname(raw_beatmapsets_data_path), "preprocessed")
+    preprocessed_root = args.output_dir
     existing_files = set()
     
     for difficulty_label in os.listdir(preprocessed_root):
@@ -114,7 +115,7 @@ def preprocess_all_raw_beatmapsets(raw_beatmapsets_data_path : str, note_precisi
 
 
 def main():
-    preprocess_all_raw_beatmapsets("Z:\\Programs\\Python\\osumania-levelgen\\data\\raw", args.note_precision)
+    preprocess_all_raw_beatmapsets(args.input_dir, args.note_precision)
     
 
 if __name__ == "__main__":

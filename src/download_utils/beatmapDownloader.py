@@ -12,6 +12,7 @@ universal_request_headers = {
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--num_beatmapsets", type=int, default=0)
+parser.add_argument("--output_dir", type=str, default=os.path.join(os.getcwd(), "data", "raw"))
 args = parser.parse_args()
 
 
@@ -195,10 +196,10 @@ def batch_download_beatmaps(amount_of_sets : int, page_offset : int, download_fo
 
 
 def main():
-    if not args.num_beatmapsets:
+    if not args.num_beatmapsets or args.num_beatmapsets <= 0:
         return
     
-    download_folder = os.path.join(os.getcwd(), "data", "raw")
+    download_folder = args.output_dir
     
     os.makedirs(download_folder, exist_ok=True)
     os.system('cls' if os.name == 'nt' else 'clear')

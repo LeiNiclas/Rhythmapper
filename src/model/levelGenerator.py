@@ -2,6 +2,7 @@ import argparse
 import json
 import librosa
 import numpy as np
+import os
 import tensorflow as tf
 
 
@@ -11,11 +12,15 @@ parser.add_argument("--sequence_length", type=int, default=64)
 parser.add_argument("--note_precision", type=int, default=2)
 parser.add_argument("--audio_bpm", type=int, default=100)
 parser.add_argument("--audio_start_ms", type=int, default=0)
+parser.add_argument("--audio_file_path", type=str, default="")
+parser.add_argument("--model_path", type=str, default=os.path.join(os.getcwd(), "models", "model-3-4_stars-P4-S128-V3.keras"))
+parser.add_argument("--output_dir", type=str, default=os.path.join(os.getcwd(), "generated"))
+parser.add_argument("--file_name", type=str, default="test")
 args = parser.parse_args()
 
-AUDIO_PATH = "Z:\\Programs\\Python\\osumania-levelgen\\data\\audio\\test_audio.mp3"
-MODEL_PATH = "Z:\\Programs\\Python\\osumania-levelgen\\models\\model-3-4_stars-P4-S128-V3.keras" # Best model up until now!
-NORM_STATS_PATH = "Z:\\Programs\\Python\\osumania-levelgen\\feature_norm_stats.json"
+AUDIO_PATH = args.audio_file_path
+MODEL_PATH = args.model_path
+NORM_STATS_PATH = os.path.join(os.getcwd(), "feature_norm_stats.json")
 
 AUDIO_BPM = args.audio_bpm
 AUDIO_START_MS = args.audio_start_ms
@@ -133,7 +138,9 @@ def main():
         mania_chart, AUDIO_START_MS, ms_per_subbeat
     )
     
-    with open("generated.osu", "w", encoding="utf-8") as f:
+    output_path = os.path.join(args.output_dir, args.file_name)
+    
+    with open(f"{output_path}.osu", "w", encoding="utf-8") as f:
         for hit_object in hit_objects:
             f.write(hit_object + "\n")
     

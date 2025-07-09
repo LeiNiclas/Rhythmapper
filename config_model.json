@@ -1,16 +1,13 @@
 {
     "difficulty_range": "3-4_stars",
-    "download_beatmapsets": 1000,
+    "download_beatmapsets": 0,
     "note_precision": 4,
     "prediction_threshold": 0.475,
     "sequence_length": 128,
     "max_vram_mb": 4096,
-    "audio_bpm": 124,
-    "audio_start_ms": 124,
     "run_beatmap_downloader": false,
     "run_beatmap_preprocessor": false,
     "run_feature_normalizer": false,
     "run_sequence_splitter": false,
-    "run_model_trainer": false,
-    "run_level_generator": true
+    "run_model_trainer": false
 }

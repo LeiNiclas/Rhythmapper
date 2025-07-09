@@ -12,17 +12,15 @@ from src.data_utils.dataSequenceLoader import get_difficulty_dataset
 from src.model.lstmManiaModel import build_lstm_model
 
 
-train_pattern = r"Z:\Programs\Python\osumania-levelgen\data\sequences\train\train_sequences_*.npy"
-test_pattern = r"Z:\Programs\Python\osumania-levelgen\data\sequences\test\test_sequences_*.npy"
-
 parser = argparse.ArgumentParser()
 parser.add_argument("--difficulty_range", type=str, default="3-4_stars")
 parser.add_argument("--max_vram_mb", type=int, default=2048)
 parser.add_argument("--note_precision", type=int, default=2)
 parser.add_argument("--sequence_length", type=int, default=64)
+parser.add_argument("--output_dir", type=int, default=os.path.join(os.getcwd(), "models"))
 args = parser.parse_args()
 
-SEQUENCES_ROOT = "Z:\\Programs\\Python\\osumania-levelgen\\data\\sequences"
+SEQUENCES_ROOT = os.path.join(os.getcwd(), "data", "sequences")
 DATA_NOTE_PRECISION = args.note_precision
 GPU_MAX_VRAM = args.max_vram_mb
 MODEL_SEQUENCE_LENGTH = args.sequence_length
@@ -66,7 +64,6 @@ def main():
     test_ds = test_ds.map(split_X_y)
     
     # Build the model.
-    sequence_length = MODEL_SEQUENCE_LENGTH
     num_features = 7
     output_dim = 4
     
@@ -85,8 +82,10 @@ def main():
     )
     
     if not os.path.exists("checkpoint_model.keras"):
-        model = build_lstm_model(input_shape=(sequence_length, num_features), output_dim=output_dim)
+        print("Creating new model.")
+        model = build_lstm_model(input_shape=(MODEL_SEQUENCE_LENGTH, num_features), output_dim=output_dim)
     else:
+        print("Continuing last mode from checkpoint_model.keras file.")
         model = tf.keras.models.load_model("checkpoint_model.keras")
     
     # Train the model using the test set for validation.
@@ -101,7 +100,7 @@ def main():
     
     model_code = f"{MODEL_TARGET_DIFFICULTY}-P{DATA_NOTE_PRECISION}-S{MODEL_SEQUENCE_LENGTH}"
     
-    model.save(f"model-{model_code}.keras")
+    model.save(os.path.join(args.output_dir, f"model-{model_code}.keras"), overwrite=False)
 
     
     # -------- Display feature importance --------

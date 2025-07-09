@@ -1,0 +1,10 @@
+{
+    "raw_data_path": "",
+    "preprocessed_data_path": "",
+    "model_dir": "models/",
+    "generation_dir": "generated/",
+    "generation_file_name": "generation_test",
+    "audio_file_path": "",
+    "visualizer_beatmap_path": "",
+    "visualizer_audio_path": ""
+}

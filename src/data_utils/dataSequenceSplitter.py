@@ -11,10 +11,11 @@ from sklearn.model_selection import train_test_split
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--sequence_length", type=int, default=64)
+parser.add_argument("--input_dir", type=str)
 args = parser.parse_args()
 
 
-NORM_STATS_PATH = "Z:\\Programs\\Python\\osumania-levelgen\\feature_norm_stats.json"
+NORM_STATS_PATH = os.path.join(os.getcwd(), "feature_norm_stats.json")
 
 
 def load_all_preprocessed_csvs(preprocessed_root : str) -> np.ndarray:
@@ -198,7 +199,7 @@ def split_and_save_sequences(sequences : np.ndarray, file_path : str, out_prefix
 
 
 def main():
-    preprocessed_root = "Z:\\Programs\\Python\\osumania-levelgen\\data\\preprocessed"
+    preprocessed_root = args.input_dir
 
     print("Creating and saving sequences by difficulty (with splitting)...")
     
