@@ -1,7 +1,7 @@
 {
     "raw_data_path": "Z:/Programs/Python/osumania-levelgen/data/raw",
     "preprocessed_data_path": "Z:/Programs/Python/osumania-levelgen/data/preprocessed",
-    "model_dir": "models/",
+    "model_dir": "Z:/Programs/Python/osumania-levelgen/models",
     "model_for_generation_path": "Z:/Programs/Python/osumania-levelgen/models/model-3-4_stars-P4-S128-V3.keras",
     "generation_dir": "Z:/Programs/Python/osumania-levelgen/generation",
     "generation_file_name": "GUI-generated",
