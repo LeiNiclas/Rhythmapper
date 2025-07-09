@@ -89,7 +89,7 @@ class Note():
             surface=surface,
             color=NOTE_SHADOW_COLS[self.lane],
             center=(self.x_pos - 2, self.y_pos + 2),
-            radius=20
+            radius=25
         )
         
         # Based
@@ -97,19 +97,19 @@ class Note():
             surface=surface,
             color=NOTE_BASE_COLS[self.lane],
             center=(self.x_pos, self.y_pos),
-            radius=20
+            radius=25
         )
         
         # Accent
         pygame.draw.circle(
             surface=surface,
             color=NOTE_ACCENT_COLS[self.lane],
-            center=(self.x_pos + 5, self.y_pos - 5),
-            radius=5
+            center=(self.x_pos + 7, self.y_pos - 7),
+            radius=7
         )
         
 
-def get_notes_from_generated(file_path : str):
+def get_notes_from_generated(file_path : str) -> list:
     contents = None
     
     with open(file_path, "r") as f:
@@ -222,16 +222,14 @@ def main():
     sfx_hit.set_volume(0.3)
 
     frame_clock = pygame.time.Clock()
-
-    SCREEN_WIDTH = 540
-    SCREEN_HEIGHT = 960
-    # ---------------------------------
-    
-    quit_game = False
     
     DISPLAY_SURFACE = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     
     pygame.display.set_caption(f"Beatmap Visualizer v{VISUALIZER_VERSION}")
+    # ---------------------------------
+    
+    # -------- Other settings --------
+    quit_game = False
 
     remaining_notes = get_notes_from_generated(file_path=GENERATED_FILE_PATH)
     active_notes = []
@@ -239,73 +237,86 @@ def main():
     start_time_s = time.time()
     
     pygame.mixer_music.play()
-
+    # ---------------------------------
     
     
     while not quit_game:
         for event in pygame.event.get():
-            if event.type == QUIT:
+            event_feedback = process_event(event=event)
+            
+            # Feedback = -1 -> Quit.
+            if event_feedback == -1:
                 pygame.quit()
                 quit_game = True
                 return
 
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    pygame.quit()
-                    quit_game = True
-                    return
+            # Feedback = 1 -> Play SFX.
+            if event_feedback == 1:
+                sfx_hit.play()
         
         DISPLAY_SURFACE.fill(color=BG_COL)
         
         current_time_s = time.time() - start_time_s
         current_time_ms = current_time_s * 1000
         
-        # Update all note positions
+        delta_time = frame_clock.tick(FPS) / 1000
+        
+        for lane in range(4):
+            if not keys_held[lane]:
+                last_pressed_times[lane] += delta_time
+
+        # Update all note positions.
         for note in remaining_notes:
-            note.update(current_time_ms)
+            note.update(current_time_ms, )
         
         for note in active_notes:
             note.update(current_time_ms)
         
+        # Get both the next notes as well as the oldest notes.
         note_idxs_remaining = len(remaining_notes)
         active_note_idxs = len(active_notes)
         
         upcoming_notes_idx = [ i for i in range(0, min(note_idxs_remaining, 4))]
-        recent_notes_idx = [ i for i in range(0, min(active_note_idxs, 4))]
+        oldest_notes_idx = [ i for i in range(0, min(active_note_idxs, 4))]
 
-        # Move possible upcoming notes into the active list
+        
+        # Move possible upcoming notes into the active list.
         for note_idx in upcoming_notes_idx[::-1]:
             if remaining_notes[note_idx].y_pos >= -10:
                 active_notes.append(remaining_notes[note_idx])
                 remaining_notes.pop(note_idx)
         
-        # Move played notes out of the active list
-        for note_idx in recent_notes_idx[::-1]:
-            if active_notes[note_idx].y_pos >= 800:
-                sfx_hit.play()
+        # Move played notes out of the active list.
+        for note_idx in oldest_notes_idx[::-1]:
+            if active_notes[note_idx].y_pos >= JUDGEMENT_Y_POSITION:
+                # Update keypress highlighting for autoplay.
+                if USE_AUTOPLAY:
+                    lane_idx = active_notes[note_idx].lane
+                    last_pressed_times[lane_idx] = 0
+                    sfx_hit.play()
+                
+                # Remove the note from the active notes list.
                 active_notes.pop(note_idx)
         
-        # Draw active notes
+        
+        # -------- Rendering --------
+        # Draw active notes.
         for note in active_notes:
             note.draw(DISPLAY_SURFACE)
-
-        # Draw judgement line
-        pygame.draw.line(
-            surface=DISPLAY_SURFACE,
-            color=WHITE,
-            width=5,
-            start_pos=(0, 800),
-            end_pos=(540, 800)
-        )
         
-        # Fill area below judgement line
-        pygame.draw.rect(
-            surface=DISPLAY_SURFACE,
-            color=BG_ACCENT_COL,
-            rect=((0, 800, SCREEN_WIDTH, SCREEN_HEIGHT))
-        )
+        # Draw judgement lines.
+        draw_judgement_line(DISPLAY_SURFACE)
+        
+        # Draw keypress highlights.
+        for lane_idx in range(4):
+            time_since = last_pressed_times[lane_idx]
+            
+            if time_since < KEYPRESS_FADE_DURATION:
+                fade_factor = 1.0 - (time_since / KEYPRESS_FADE_DURATION)
+                draw_keypress_highlights(surface=DISPLAY_SURFACE, lane_idx=lane_idx, fade_factor=fade_factor)
         
         pygame.display.update()
+        # ---------------------------
 
 
 if __name__ == "__main__":
