@@ -1,10 +1,17 @@
-import time
+import argparse
+import os
 import pygame
+import time
 from pygame.locals import *
 
-GENERATED_FILE_PATH = "Z:\\Programs\\Python\\osumania-levelgen\\generated\\generated6.osu"
-AUDIO_FILE_PATH = "Z:\\Programs\\Python\\osumania-levelgen\\data\\audio\\test_audio.mp3"
-HIT_SFX_FILE_PATH = "Z:\\Programs\\Python\\osumania-levelgen\\src\\visualizer\\hit_sfx.mp3"
+parser = argparse.ArgumentParser()
+parser.add_argument("--beatmap_path", type=str, default=os.path.join(os.getcwd(), "generation", "test.osu"))
+parser.add_argument("--audio_path", type=str, default=os.path.join(os.getcwd(), "generation", "audio", "test_audio.mp3"))
+args = parser.parse_args()
+
+GENERATED_FILE_PATH = args.beatmap_path
+AUDIO_FILE_PATH = args.audio_path
+HIT_SFX_FILE_PATH = os.path.join(os.getcwd(), "src", "visualizer", "hit_sfx.mp3")
 
 # The hit SFX is royalty free.
 # Download: https://pixabay.com/sound-effects/electronic-closed-hat-11-stereo-100413/

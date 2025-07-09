@@ -95,12 +95,18 @@ class ConfigEditor:
     
     def build_generation_frame(self):
         self.add_file_entry(self.generation_frame, "Audio File to generate Beatmap for:", "audio_file_path")
+        self.add_file_entry(self.generation_frame, "Model to use:", "model_for_generation_path")
         self.add_float_entry(self.generation_frame, "Audio BPM:", "audio_bpm", config=self.generation_config)
         self.add_int_entry(self.generation_frame, "Audio Start Time (ms):", "audio_start_ms", config=self.generation_config)
+        self.add_str_entry(self.generation_frame, "Beatmap File Name:", "generation_file_name", config=self.paths_config)
+        self.add_path_entry(self.generation_frame, "Generation Output Folder:", "generation_dir")
 
         self.add_checkbox(self.generation_frame, "Run Level Generator", "run_level_generator", config=self.generation_config)
         self.run_visualizer_var = self.add_checkbox(self.generation_frame, "Run Visualizer After Generation", "run_visualizer", config=self.generation_config)
+        self.use_last_generated_level_var = self.add_checkbox(self.generation_frame, "Use Latest Generated file for Visualizer", "visualizer_use_last_gen", config=self.generation_config)
 
+        ttk.Label(self.generation_frame, text="If not using the Latest Generated File, specify which Audio and File to Visualize:", padding=10).pack()
+        
         # Optional manual selection for visualizer
         self.add_file_entry(self.generation_frame, "Visualizer Beatmap (.osu) File:", "visualizer_beatmap_path")
         self.add_file_entry(self.generation_frame, "Visualizer Audio File:", "visualizer_audio_path")
@@ -153,6 +159,15 @@ class ConfigEditor:
         cfg = config or self.model_config
         ttk.Label(frame, text=label).pack()
         var = tk.IntVar(value=cfg.get(key, 0))
+        ttk.Entry(frame, textvariable=var).pack()
+        
+        cfg[key] = var
+    
+    
+    def add_str_entry(self, frame : ttk.Frame, label : str, key, config=None):
+        cfg = config or self.model_config
+        ttk.Label(frame, text=label).pack()
+        var = tk.StringVar(value=cfg.get(key, ""))
         ttk.Entry(frame, textvariable=var).pack()
         
         cfg[key] = var

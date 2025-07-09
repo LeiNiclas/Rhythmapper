@@ -1,10 +1,11 @@
 {
-    "raw_data_path": "",
-    "preprocessed_data_path": "",
+    "raw_data_path": "Z:/Programs/Python/osumania-levelgen/data/raw",
+    "preprocessed_data_path": "Z:/Programs/Python/osumania-levelgen/data/preprocessed",
     "model_dir": "models/",
-    "generation_dir": "generated/",
-    "generation_file_name": "generation_test",
-    "audio_file_path": "",
-    "visualizer_beatmap_path": "",
-    "visualizer_audio_path": ""
+    "model_for_generation_path": "Z:/Programs/Python/osumania-levelgen/models/model-3-4_stars-P4-S128-V3.keras",
+    "generation_dir": "Z:/Programs/Python/osumania-levelgen/generation",
+    "generation_file_name": "GUI-generated",
+    "audio_file_path": "Z:/Programs/Python/osumania-levelgen/generation/audio/test_audio.mp3",
+    "visualizer_beatmap_path": "Z:/Programs/Python/osumania-levelgen/generation/generated8-GQ.osu",
+    "visualizer_audio_path": "Z:/Programs/Python/osumania-levelgen/generation/audio/test_audio.mp3"
 }

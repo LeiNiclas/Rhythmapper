@@ -1,5 +1,5 @@
-import argparse
 import json
+import os
 import subprocess
 import sys
 
@@ -88,10 +88,10 @@ def main():
             "--note_precision", str(config_model["note_precision"]),
             "--prediction_threshold", str(config_model["prediction_threshold"]),
             "--sequence_length", str(config_model["sequence_length"]),
-            "--audio_path", config_paths["audio_file_path"],
-            "--model_dir", config_paths["model_dir"],
-            "--output_dir", config_paths["generated_path"],
-            "--file_name", config_paths["file_name"]
+            "--audio_file_path", config_paths["audio_file_path"],
+            "--model_path", config_paths["model_for_generation_path"],
+            "--output_dir", config_paths["generation_dir"],
+            "--file_name", config_paths["generation_file_name"]
         ], "Generate Level")
 
     # Step 7: Run visualizer if enabled
@@ -99,12 +99,12 @@ def main():
         beatmap_path = config_paths["visualizer_beatmap_path"]
         audio_path = config_paths["visualizer_audio_path"]
         
-        if config_generation.get("visualizer_use_lat_gen", True):
-            beatmap_path = config_paths["generated_path"]
+        if config_generation.get("visualizer_use_last_gen", True):
+            beatmap_path = os.path.join(config_paths["generation_dir"], f"{config_paths['generation_file_name']}.osu")
             audio_path = config_paths["audio_file_path"]
         
         run_step([
-            "python", "src/visualizer.visualizer.py",
+            "python", "src/visualizer/visualizer.py",
             "--beatmap_path", beatmap_path,
             "--audio_path", audio_path
         ], "Run Visualizer")
