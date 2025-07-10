@@ -184,13 +184,14 @@ class ConfigEditor:
         self.add_spinbox(self.training_frame, "Note Precision:", "note_precision", from_=1, to=8)
         self.add_spinbox(self.training_frame, "Sequence Length:", "sequence_length", from_=16, to=512)
         self.add_int_entry(self.training_frame, "Max VRAM for GPU Training (MB):", "max_vram_mb")
+        self.add_spinbox(self.training_frame, "Training epochs:", "training_epochs", from_=1, to=1000)
         self.add_path_entry(self.training_frame, "Model output directory:", "model_dir")
         # -----------------------------------
         
-        self.add_separator(self.training_frame, 7)
+        self.add_separator(self.training_frame, 8)
         
         # -------- Pipeline settings --------
-        self.add_header(self.training_frame, 8, "Pipeline settings")
+        self.add_header(self.training_frame, 9, "Pipeline settings")
         
         self.add_checkbox(self.training_frame, "Run Feature Normalizer", "run_feature_normalizer", config=self.model_config)
         self.add_checkbox(self.training_frame, "Run Sequence Splitter", "run_sequence_splitter", config=self.model_config)
