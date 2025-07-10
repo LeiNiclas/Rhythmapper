@@ -1,5 +1,6 @@
 import json
 import os
+import threading
 import tkinter as tk
 import subprocess
 import sys
@@ -26,11 +27,13 @@ BUTTON_TEXT_COL = FONT_COL
  
 
 DIFFICULTY_OPTIONS = [ "0-1_stars", "1-2_stars", "2-3_stars", "3-4_stars", "4-5_stars", "5_stars_plus" ]
+EXPORT_OPTIONS = [ ".osz", ".qua" ]
 
-GUI_VERSION = "1.3"
+GUI_VERSION = "1.4"
 TK_THEME = "clam"
 
 local_vars = {}
+
 
 def try_get(v):
     try:
@@ -102,6 +105,22 @@ def setup_style():
     style.configure("TSeparator", background=BG_COL)
 
 
+class ConsoleRedirector:
+    def __init__(self, text_widget):
+        self.text_widget = text_widget
+
+
+    def write(self, msg):
+        self.text_widget.config(state="normal")
+        self.text_widget.insert(tk.END, msg)
+        self.text_widget.see(tk.END)
+        self.text_widget.config(state="disabled")
+
+
+    def flush(self):
+        pass
+
+
 class ConfigEditor:
     def __init__(self, root):
         self.root = root
@@ -110,6 +129,7 @@ class ConfigEditor:
         self.model_config = load_json(CONFIG_MODEL_PATH)
         self.paths_config = load_json(CONFIG_PATHS_PATH)
         self.generation_config = load_json(CONFIG_GENERATION_PATH)
+        self.output_window = None
         
         setup_style()
         
@@ -119,7 +139,7 @@ class ConfigEditor:
     def create_widgets(self) -> None:
         notebook = ttk.Notebook(self.root)
         notebook.pack(fill="both", expand=True)
-        
+
         self.download_frame = ttk.Frame(notebook)
         self.training_frame = ttk.Frame(notebook)
         self.generation_frame = ttk.Frame(notebook)
@@ -147,6 +167,7 @@ class ConfigEditor:
         ttk.Button(btn_frame, text="Save & Exit", command=self.save_and_quit).grid(row=0, column=1, padx=5)
         ttk.Button(btn_frame, text="Save & Run", command=self.save_and_run).grid(row=0, column=2, padx=5)
         ttk.Button(btn_frame, text="Export", command=self.export).grid(row=0, column=3, padx=[5, 50])
+        ttk.Button(btn_frame, text="View Console Output", command=self.open_output_window).grid(row=0, column=4, padx=[5, 50])
 
 
     def build_download_frame(self) -> None:
@@ -261,8 +282,7 @@ class ConfigEditor:
         self.export_audio_artist = self.add_str_entry(self.export_frame, "Artist:", "artist", is_config_var=False)
         self.export_difficulty_name = self.add_str_entry(self.export_frame, "Difficulty Name:", "difficulty_name", is_config_var=False)
         
-        self.export_format = self.add_dropdown(self.export_frame, "Export format:", "export_format", [".osz"], is_config_var=False)
-        # Maybe add more formats in the future.
+        self.export_format = self.add_dropdown(self.export_frame, "Export format:", "export_format", options=EXPORT_OPTIONS, is_config_var=False)
         # ---------------------------------
 
 
@@ -408,13 +428,34 @@ class ConfigEditor:
             "difficulty_name": difficulty
         }
         
-        try:
-            be.export_to_osz(a_fp, bm_fp, e_dd, metadata=metadata)
-        except Exception:
+        if fmt == ".osz":
+            be.export_to_osz(audio_file_path=a_fp, beatmap_file_path=bm_fp, export_path=e_dd, metadata=metadata)
+        elif fmt == ".qua":
+            be.export_to_qua(audio_file_path=a_fp, beatmap_file_path=bm_fp, export_path=e_dd, metadata=metadata)
+        else:
             messagebox.showerror("Error", f"Beatmap could not be exported.")
             return
 
         messagebox.showinfo("Success", "Export complete.")
+
+    
+    def open_output_window(self) -> None:
+        if self.output_window is not None and self.output_window.winfo_exists():
+            self.output_window.lift()
+            return
+        
+        self.output_window = tk.Toplevel(self.root)
+        self.output_window.title("Console Output")
+        self.output_window.configure(bg=BG_COL)
+
+        self.console_text_widget = tk.Text(self.output_window, wrap="word", bg=BG_COL, fg=FONT_COL, font=("Consolas", 12))
+        self.console_text_widget.pack(expand=True, fill="both", padx=10, pady=10)
+        self.console_text_widget.config(state="disabled")
+
+        sys.stdout = ConsoleRedirector(self.console_text_widget)
+        sys.stderr = ConsoleRedirector(self.console_text_widget)
+
+        print(f"Console window initialized.\n{27*'='}")
 
 
     def save_all(self) -> None:
@@ -433,7 +474,23 @@ class ConfigEditor:
     def save_and_run(self) -> None:
         self.save_all()
         
-        subprocess.run(["python", "runPipeline.py"])
+        thread = threading.Thread(target=self.run_pipeline)
+        thread.start()
+        
+    
+    def run_pipeline(self) -> None:
+        process = subprocess.Popen(
+            ["python", "-u", "runPipeline.py"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True
+        )
+        
+        for line in process.stdout:
+            self.console_text_widget.config(state="normal")
+            self.console_text_widget.insert(tk.END, line)
+            self.console_text_widget.see(tk.END)
+            self.console_text_widget.config(state="disabled")
 
 
 if __name__ == "__main__":
@@ -441,3 +498,4 @@ if __name__ == "__main__":
     root.configure(bg=BG_COL)
     app = ConfigEditor(root=root)
     root.mainloop()
+
