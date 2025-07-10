@@ -62,7 +62,8 @@ def main():
 
     # Step 4: Split sequences
     if run_sequence_splitter:
-        difficulty_arg = f"--difficulty_range {config_model["difficulty_range"]}" if not bool(config_model["split_all_difficulty_sequences"]) else ""
+        difficulty_arg = f"--difficulty_range="
+        difficulty_arg += f"{config_model['difficulty_range']}" if config_model["split_all_difficulty_sequences"] else "all"
         
         run_step([
             "python", "src/data_utils/dataSequenceSplitter.py",

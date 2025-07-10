@@ -113,8 +113,8 @@ def create_and_save_sequences_by_difficulty(preprocessed_root : str, sequence_le
     
     for difficulty_label in os.listdir(preprocessed_root):
         # Skip all difficulties except desired one.
-        if args.difficulty != "all" and args.difficulty != difficulty_label:
-            continue
+        if args.difficulty_range != "all" and args.difficulty_range != difficulty_label:
+                continue
         
         diff_dir = os.path.join(preprocessed_root, difficulty_label)
         

@@ -180,16 +180,17 @@ class ConfigEditor:
         self.add_header(self.training_frame, 0, "Training settings")
         
         self.add_dropdown(self.training_frame, "Difficulty Range:", "difficulty_range", DIFFICULTY_OPTIONS)
+        self.add_checkbox(self.training_frame, "Generate Sequences for all Difficulties", "split_all_difficulty_sequences", config=self.model_config)
         self.add_spinbox(self.training_frame, "Note Precision:", "note_precision", from_=1, to=8)
         self.add_spinbox(self.training_frame, "Sequence Length:", "sequence_length", from_=16, to=512)
         self.add_int_entry(self.training_frame, "Max VRAM for GPU Training (MB):", "max_vram_mb")
         self.add_path_entry(self.training_frame, "Model output directory:", "model_dir")
         # -----------------------------------
         
-        self.add_separator(self.training_frame, 6)
+        self.add_separator(self.training_frame, 7)
         
         # -------- Pipeline settings --------
-        self.add_header(self.training_frame, 7, "Pipeline settings")
+        self.add_header(self.training_frame, 8, "Pipeline settings")
         
         self.add_checkbox(self.training_frame, "Run Feature Normalizer", "run_feature_normalizer", config=self.model_config)
         self.add_checkbox(self.training_frame, "Run Sequence Splitter", "run_sequence_splitter", config=self.model_config)
