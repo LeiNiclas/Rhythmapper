@@ -44,21 +44,26 @@ def export_to_qua(audio_file_path : str, beatmap_file_path : str, export_path : 
     if beatmap_file_path.split('.')[-1] != "osu":
         raise ValueError(f"Error: Could not export beatmap. Beatmap file {beatmap_file_path} has invalid extension.")
 
+    title = metadata["title"]
+    artist = metadata["artist"]
+    difficulty = metadata["difficulty_name"]
     audio_file_name = os.path.basename(audio_file_path)
-
+    
     # Create folder for export.
-    os.makedirs(export_path, exist_ok=True)
+    beatmap_folder_name = f"{artist} - {title} (Quaver-map-gen-AI) [{difficulty}]"
+    beatmap_export_dir = os.path.join(export_path, beatmap_folder_name)
+    os.makedirs(beatmap_export_dir, exist_ok=True)
 
     # Create .qua file.
     create_qua_file_template(
         audio_file_name=audio_file_name,
         beatmap_file_path=beatmap_file_path,
-        destination_file_path=export_path,
+        destination_file_path=beatmap_export_dir,
         metadata=metadata
     )
 
     # Copy audio to target location.
-    shutil.copy(audio_file_path, os.path.join(export_path, audio_file_name))
+    shutil.copy(audio_file_path, os.path.join(beatmap_export_dir, audio_file_name))
 
 
 def create_osu_file_template(audio_file_name : str, beatmap_file_path : str, destination_file_path : str, metadata : dict) -> str:
