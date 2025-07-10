@@ -17,7 +17,7 @@ parser.add_argument("--difficulty_range", type=str, default="3-4_stars")
 parser.add_argument("--max_vram_mb", type=int, default=2048)
 parser.add_argument("--note_precision", type=int, default=2)
 parser.add_argument("--sequence_length", type=int, default=64)
-parser.add_argument("--output_dir", type=int, default=os.path.join(os.getcwd(), "models"))
+parser.add_argument("--output_dir", type=str, default=os.path.join(os.getcwd(), "models"))
 args = parser.parse_args()
 
 SEQUENCES_ROOT = os.path.join(os.getcwd(), "data", "sequences")
