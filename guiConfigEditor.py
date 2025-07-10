@@ -27,6 +27,7 @@ BUTTON_TEXT_COL = FONT_COL
  
 
 DIFFICULTY_OPTIONS = [ "0-1_stars", "1-2_stars", "2-3_stars", "3-4_stars", "4-5_stars", "5_stars_plus" ]
+EXPORT_OPTIONS = [ ".osz", ".qua" ]
 
 GUI_VERSION = "1.4"
 TK_THEME = "clam"
@@ -281,8 +282,7 @@ class ConfigEditor:
         self.export_audio_artist = self.add_str_entry(self.export_frame, "Artist:", "artist", is_config_var=False)
         self.export_difficulty_name = self.add_str_entry(self.export_frame, "Difficulty Name:", "difficulty_name", is_config_var=False)
         
-        self.export_format = self.add_dropdown(self.export_frame, "Export format:", "export_format", [".osz"], is_config_var=False)
-        # Maybe add more formats in the future.
+        self.export_format = self.add_dropdown(self.export_frame, "Export format:", "export_format", options=EXPORT_OPTIONS, is_config_var=False)
         # ---------------------------------
 
 
@@ -428,9 +428,11 @@ class ConfigEditor:
             "difficulty_name": difficulty
         }
         
-        try:
-            be.export_to_osz(a_fp, bm_fp, e_dd, metadata=metadata)
-        except Exception:
+        if fmt == ".osz":
+            be.export_to_osz(audio_file_path=a_fp, beatmap_file_path=bm_fp, export_path=e_dd, metadata=metadata)
+        elif fmt == ".qua":
+            be.export_to_qua(audio_file_path=a_fp, beatmap_file_path=bm_fp, export_path=e_dd, metadata=metadata)
+        else:
             messagebox.showerror("Error", f"Beatmap could not be exported.")
             return
 
