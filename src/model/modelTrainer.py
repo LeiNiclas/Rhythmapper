@@ -18,6 +18,7 @@ parser.add_argument("--max_vram_mb", type=int, default=2048)
 parser.add_argument("--note_precision", type=int, default=2)
 parser.add_argument("--sequence_length", type=int, default=64)
 parser.add_argument("--output_dir", type=str, default=os.path.join(os.getcwd(), "models"))
+parser.add_argument("--epochs", type=int, default=100)
 args = parser.parse_args()
 
 SEQUENCES_ROOT = os.path.join(os.getcwd(), "data", "sequences")
@@ -92,14 +93,14 @@ def main():
     model.fit(
         train_ds,
         validation_data = test_ds,
-        epochs=100,
+        epochs=args.epochs,
         steps_per_epoch=500,
         validation_steps=100,
         callbacks=[checkpoint_callback, early_stop]
     )
     
     model_code = f"{MODEL_TARGET_DIFFICULTY}-P{DATA_NOTE_PRECISION}-S{MODEL_SEQUENCE_LENGTH}"
-    
+    2
     model.save(os.path.join(args.output_dir, f"model-{model_code}.keras"), overwrite=False)
 
     

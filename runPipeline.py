@@ -62,10 +62,13 @@ def main():
 
     # Step 4: Split sequences
     if run_sequence_splitter:
+        difficulty_arg = f"--difficulty_range {config_model["difficulty_range"]}" if not bool(config_model["split_all_difficulty_sequences"]) else ""
+        
         run_step([
             "python", "src/data_utils/dataSequenceSplitter.py",
             "--sequence_length", str(config_model["sequence_length"]),
-            "--input_dir", config_paths["preprocessed_data_path"]
+            "--input_dir", config_paths["preprocessed_data_path"],
+            difficulty_arg
         ], "Split Sequences")
 
     # Step 5: Train model
@@ -76,7 +79,8 @@ def main():
             "--max_vram_mb", str(config_model["max_vram_mb"]),
             "--note_precision", str(config_model["note_precision"]),
             "--sequence_length", str(config_model["sequence_length"]),
-            "--output_dir", config_paths["model_dir"]
+            "--output_dir", config_paths["model_dir"],
+            "--epochs", str(config_model["training_epochs"])
         ], "Train Model")
 
     # Step 6: Generate level

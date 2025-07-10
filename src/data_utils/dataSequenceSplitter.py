@@ -11,6 +11,7 @@ from sklearn.model_selection import train_test_split
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--sequence_length", type=int, default=64)
+parser.add_argument("--difficulty_range", type=str, default="all")
 parser.add_argument("--input_dir", type=str)
 args = parser.parse_args()
 
@@ -111,6 +112,10 @@ def create_and_save_sequences_by_difficulty(preprocessed_root : str, sequence_le
     stds = stats["stds"]
     
     for difficulty_label in os.listdir(preprocessed_root):
+        # Skip all difficulties except desired one.
+        if args.difficulty != "all" and args.difficulty != difficulty_label:
+            continue
+        
         diff_dir = os.path.join(preprocessed_root, difficulty_label)
         
         if not os.path.isdir(diff_dir):
@@ -203,10 +208,12 @@ def main():
 
     print("Creating and saving sequences by difficulty (with splitting)...")
     
+    out_dir = os.path.join(os.path.dirname(preprocessed_root), "sequences")
+    
     create_and_save_sequences_by_difficulty(
         preprocessed_root=preprocessed_root,
         sequence_length=args.sequence_length,
-        out_dir=os.path.join(os.path.dirname(preprocessed_root), "sequences"),
+        out_dir=out_dir,
         max_gb=0.5
     )
 
