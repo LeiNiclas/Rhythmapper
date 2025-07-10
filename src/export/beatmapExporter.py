@@ -2,14 +2,14 @@ import os
 import shutil
 
 
-def export_to_osz(audio_file_path : str, beatmap_file_path : str, export_path : str, metadata : dict):
+def export_to_osz(audio_file_path : str, beatmap_file_path : str, export_path : str, metadata : dict) -> None:
     # Check validty of audio file extension.
     if audio_file_path.split('.')[-1] not in [ "mp3", "wav", "ogg" ]:
-        raise ValueError(f"Error: Could not export beatmap. Audio file {audio_file_path} has invalid extension.")
+        raise ValueError(f"Error: Could not export beatmap to .osz. Audio file {audio_file_path} has invalid extension.")
     
     # Check validty of beatmap file extension.
     if beatmap_file_path.split('.')[-1] != "osu":
-        raise ValueError(f"Error: Could not export beatmap. Beatmap file {beatmap_file_path} has invalid extension.")
+        raise ValueError(f"Error: Could not export beatmap .osz. Beatmap file {beatmap_file_path} has invalid extension.")
     
     beatmap_name = os.path.basename(beatmap_file_path).replace(".osu", "")
     audio_file_name = os.path.basename(audio_file_path)
@@ -17,7 +17,7 @@ def export_to_osz(audio_file_path : str, beatmap_file_path : str, export_path : 
     temp_dir = os.path.join(export_path, f"{beatmap_name}_temp")
     os.makedirs(temp_dir, exist_ok=True)
     
-    difficulty_name = create_osu_file_template(
+    create_osu_file_template(
         audio_file_name=audio_file_name,
         beatmap_file_path=beatmap_file_path,
         destination_file_path=temp_dir,
@@ -33,6 +33,32 @@ def export_to_osz(audio_file_path : str, beatmap_file_path : str, export_path : 
     
     # Rename the .zip file to .osz.
     os.rename(f"{archive_base}.zip", os.path.join(export_path, f"{beatmap_name}.osz"))
+
+
+def export_to_qua(audio_file_path : str, beatmap_file_path : str, export_path : str, metadata : dict) -> None:
+    # Check validity of audio file extension.
+    if audio_file_path.split('.')[-1] not in [ "mp3", "wav", "ogg" ]:
+        raise ValueError(f"Error: Could not export beatmap. Audio file {audio_file_path} has invalid extension.")
+
+    # Check validity of beatmap file extension.
+    if beatmap_file_path.split('.')[-1] != "osu":
+        raise ValueError(f"Error: Could not export beatmap. Beatmap file {beatmap_file_path} has invalid extension.")
+
+    audio_file_name = os.path.basename(audio_file_path)
+
+    # Create folder for export.
+    os.makedirs(export_path, exist_ok=True)
+
+    # Create .qua file.
+    create_qua_file_template(
+        audio_file_name=audio_file_name,
+        beatmap_file_path=beatmap_file_path,
+        destination_file_path=export_path,
+        metadata=metadata
+    )
+
+    # Copy audio to target location.
+    shutil.copy(audio_file_path, os.path.join(export_path, audio_file_name))
 
 
 def create_osu_file_template(audio_file_name : str, beatmap_file_path : str, destination_file_path : str, metadata : dict) -> str:
@@ -110,6 +136,54 @@ def create_osu_file_template(audio_file_name : str, beatmap_file_path : str, des
 
     with open(os.path.join(destination_file_path, beatmap_name), "x") as f:
         f.write(osu_file_contents)
+
+
+def create_qua_file_template(audio_file_name : str, beatmap_file_path : str, destination_file_path : str, metadata : dict) -> str:
+    hitObjects = None
     
-    return beatmap_name
+    with open(beatmap_file_path, "r") as f:
+        hitObjects = f.readlines()
+    
+    title = metadata["title"]
+    artist = metadata["artist"]
+    difficulty = metadata["difficulty_name"]
+    audio_start_timing = int(metadata["audio_start_ms"])
+    audio_bpm = float(metadata["audio_bpm"])
+    audio_time_signature = int(metadata["audio_time_signature"])
+    
+    qua_file_contents = f"AudioFile: {audio_file_name}\n"
+    qua_file_contents += "SongPreviewTime: 0\n"
+    qua_file_contents += "BackgroundFile: \n"
+    qua_file_contents += "Mode: Keys4\n"
+    qua_file_contents += f"Title: {title}"
+    qua_file_contents += f"Artist: {artist}"
+    qua_file_contents += "Source: \n"
+    qua_file_contents += "Tags: \n"
+    qua_file_contents += "Creator: Quaver-map-gen-AI\n"
+    qua_file_contents += f"DifficultyName: {difficulty}\n"
+    qua_file_contents += "Description: AI generated map. (https://github.com/LeiNiclas/osu-mania-level-gen-AI)\n"
+    qua_file_contents += "EditorLayers: []\n\n"
+    
+    qua_file_contents += "TimingPoints:\n"
+    qua_file_contents += f"- StartTime: {audio_start_timing}\n"
+    qua_file_contents += f"  Bpm: {audio_bpm}\n\n"
+    
+    qua_file_contents += "SliderVelocities: []\n\n"
+    
+    qua_file_contents += "HitObjects:\n"
+    
+    for line in hitObjects:
+        split = line.strip().split(",")
+        
+        timing = split[2]
+        x_pos = int(split[0])
+        lane_idx = ((x_pos - 64) // 128) + 1
+        
+        qua_file_contents += f"- StartTime: {timing}\n"
+        qua_file_contents += f"  Lane: {lane_idx}\n"
+    
+    beatmap_name = f"{artist} - {title} (Quaver-map-gen-AI) [{difficulty}].qua"
+    
+    with open(os.path.join(destination_file_path, beatmap_name), "x", encoding="utf-8") as f:
+        f.write(qua_file_contents)
 
