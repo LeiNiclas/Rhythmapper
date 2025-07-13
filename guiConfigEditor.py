@@ -25,6 +25,7 @@ DISABLED_COL = "#121212"
 BUTTON_TEXT_COL = FONT_COL
 # ---------------------------
  
+OPEN_CONSOLE_WINDOW_ON_RUN = True
 
 DIFFICULTY_OPTIONS = [ "0-1_stars", "1-2_stars", "2-3_stars", "3-4_stars", "4-5_stars", "5_stars_plus" ]
 EXPORT_OPTIONS = [ ".osz", ".qua" ]
@@ -429,6 +430,10 @@ class ConfigEditor:
             "difficulty_name": difficulty
         }
         
+        # Automatically open the console window.
+        if OPEN_CONSOLE_WINDOW_ON_RUN:
+            self.open_output_window()
+        
         if fmt == ".osz":
             be.export_to_osz(audio_file_path=a_fp, beatmap_file_path=bm_fp, export_path=e_dd, metadata=metadata)
         elif fmt == ".qua":
@@ -463,8 +468,6 @@ class ConfigEditor:
         save_json(CONFIG_MODEL_PATH, {k: try_get(v) for k, v in self.model_config.items()})
         save_json(CONFIG_PATHS_PATH, {k: try_get(v) for k, v in self.paths_config.items()})
         save_json(CONFIG_GENERATION_PATH, {k: try_get(v) for k, v in self.generation_config.items()})
-        
-        # messagebox.showinfo("Saved", "Configuration saved successfully.")
 
 
     def save_and_quit(self) -> None:
@@ -473,6 +476,9 @@ class ConfigEditor:
 
 
     def save_and_run(self) -> None:
+        if OPEN_CONSOLE_WINDOW_ON_RUN:
+            self.open_output_window()
+        
         self.save_all()
         
         thread = threading.Thread(target=self.run_pipeline)
