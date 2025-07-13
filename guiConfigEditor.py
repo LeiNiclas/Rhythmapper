@@ -130,6 +130,7 @@ class ConfigEditor:
         self.paths_config = load_json(CONFIG_PATHS_PATH)
         self.generation_config = load_json(CONFIG_GENERATION_PATH)
         self.output_window = None
+        self.console_text_widget = None
         
         setup_style()
         
@@ -479,23 +480,25 @@ class ConfigEditor:
         
     
     def run_pipeline(self) -> None:
-        process = subprocess.Popen(
-            ["python", "-u", "runPipeline.py"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True
-        )
+        if self.console_text_widget is not None:
+            process = subprocess.Popen(
+                ["python", "-u", "runPipeline.py"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True
+            )
+            
+            for line in process.stdout:
+                self.console_text_widget.config(state="normal")
+                self.console_text_widget.insert(tk.END, line)
+                self.console_text_widget.see(tk.END)
+                self.console_text_widget.config(state="disabled")
+        else:
+            subprocess.run(["python", "runPipeline.py"])
         
-        for line in process.stdout:
-            self.console_text_widget.config(state="normal")
-            self.console_text_widget.insert(tk.END, line)
-            self.console_text_widget.see(tk.END)
-            self.console_text_widget.config(state="disabled")
-
 
 if __name__ == "__main__":
     root = tk.Tk()
     root.configure(bg=BG_COL)
     app = ConfigEditor(root=root)
     root.mainloop()
-
