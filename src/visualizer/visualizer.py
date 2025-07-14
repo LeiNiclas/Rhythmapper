@@ -5,7 +5,7 @@ import time
 from pygame.locals import *
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--beatmap_path", type=str, default=os.path.join(os.getcwd(), "generation", "test.osu"))
+parser.add_argument("--beatmap_path", type=str, default=os.path.join(os.getcwd(), "generation", "test.gblf"))
 parser.add_argument("--audio_path", type=str, default=os.path.join(os.getcwd(), "generation", "audio", "test_audio.mp3"))
 args = parser.parse_args()
 
@@ -16,7 +16,7 @@ HIT_SFX_FILE_PATH = os.path.join(os.getcwd(), "src", "visualizer", "hit_sfx.mp3"
 # The hit SFX is royalty free.
 # Download: https://pixabay.com/sound-effects/electronic-closed-hat-11-stereo-100413/
 
-VISUALIZER_VERSION = "1.3"
+VISUALIZER_VERSION = "1.4"
 FPS = 144
 
 # -------- Colors --------
@@ -57,6 +57,7 @@ KEY_LANE_MAP = {
 
 keys_held = [ False ] * 4
 last_pressed_times = [ 999 ] * 4
+last_pressed_colors = [ WHITE ] * 4
 
 KEYPRESS_FADE_DURATION = 0.2
 # -----------------------
@@ -67,49 +68,192 @@ SCREEN_HEIGHT = 1024
 
 USE_AUTOPLAY = True
 
+NOTE_DISPLAY_MODE = 3
+NOTE_SPRITE_TYPE = 1
+
 JUDGEMENT_Y_POSITION = 850
 
-SCROLL_SPEED = 1
+SCROLL_SPEED = 1.2
 # -------------------------
 
 
+
+
 class Note():
-    def __init__(self, lane, timing_ms):
+    def __init__(self, lane, timing_ms, raw_pred_value, is_placed_note):
         self.lane = lane
         self.timing_ms = timing_ms
         self.x_pos = lane * 128 + 64
         self.y_pos = -1000
-    
+        self.raw_pred_value = raw_pred_value
+        self.is_placed_note = is_placed_note
+        self.base_color = BLACK
+
+
     def update(self, current_timing_ms):
         self.y_pos = SCROLL_SPEED * (current_timing_ms - self.timing_ms) + JUDGEMENT_Y_POSITION
 
+
     def draw(self, surface):
-        # Shadow
-        pygame.draw.circle(
-            surface=surface,
-            color=NOTE_SHADOW_COLS[self.lane],
-            center=(self.x_pos - 2, self.y_pos + 2),
-            radius=25
+        base_color, shadow_color, accent_color = get_note_colors(
+            lane=self.lane,
+            is_placed_note=self.is_placed_note,
+            raw_pred_value=self.raw_pred_value,
+            y_pos=self.y_pos
         )
         
-        # Based
-        pygame.draw.circle(
-            surface=surface,
-            color=NOTE_BASE_COLS[self.lane],
-            center=(self.x_pos, self.y_pos),
-            radius=25
-        )
+        self.base_color = base_color
         
-        # Accent
-        pygame.draw.circle(
-            surface=surface,
-            color=NOTE_ACCENT_COLS[self.lane],
-            center=(self.x_pos + 7, self.y_pos - 7),
-            radius=7
-        )
+        # No need to draw anything if the alpha comoponent of the base color is 0.
+        if base_color[3] == 0:
+            return
+        
+        surface_size = None
+        note_surface = None
+        
+        if NOTE_SPRITE_TYPE == 0:
+            surface_size = (60, 60)
+            note_surface = pygame.Surface(surface_size, flags=pygame.SRCALPHA)
+            
+            center = (surface_size[0] // 2, surface_size[1] // 2)
+            
+            # Shadow
+            pygame.draw.circle(
+                surface=note_surface,
+                color=shadow_color,
+                center=(center[0] - 2, center[1] + 2),
+                radius=25
+            )
+
+            # Base
+            pygame.draw.circle(
+                surface=note_surface,
+                color=base_color,
+                center=center,
+                radius=25
+            )
+
+            # Accent
+            pygame.draw.circle(
+                surface=note_surface,
+                color=accent_color,
+                center=(center[0] + 7, center[1] - 7),
+                radius=7
+            )
+            
+            surface.blit(note_surface, (self.x_pos - (surface_size[0] / 2), self.y_pos - (surface_size[1] / 2)))
+
+        elif NOTE_SPRITE_TYPE == 1:
+            surface_size = (128, 48)
+            note_surface = pygame.Surface(surface_size, flags=pygame.SRCALPHA)
+            
+            
+            # All rects relative to local surface.
+            shadow_rect = pygame.Rect(4, 4, surface_size[0]-8, surface_size[1]-8)
+            base_rect = pygame.Rect(0, 0, surface_size[0], surface_size[1])
+            accent_rect = pygame.Rect(surface_size[0]//8, surface_size[1]//8, surface_size[0]//1.33, surface_size[1]//6)
+            
+            # Shadow
+            pygame.draw.rect(
+                note_surface,
+                color=shadow_color,
+                rect=shadow_rect,
+                border_radius=4
+            )
+            
+            # Base
+            pygame.draw.rect(
+                note_surface,
+                color=base_color,
+                rect=base_rect,
+                border_radius=4
+            )
+            
+            # Accent
+            pygame.draw.rect(
+                note_surface,
+                color=accent_color,
+                rect=accent_rect,
+                border_radius=8
+            )
+
+            surface.blit(note_surface, (self.x_pos - (surface_size[0] // 2), self.y_pos - (surface_size[1] // 2)))
         
 
-def get_notes_from_generated(file_path : str) -> list:
+def get_note_colors(lane, is_placed_note, raw_pred_value, y_pos):
+    def get_faded_alpha():
+        # Smoothing formula: alpha(x) = 3x^2 - 2x^3
+        alpha = int(
+            ((3 * (raw_pred_value**2)) - (2 * (raw_pred_value**3))) * 255
+        )
+        
+        # Percentage to calculate fade-in and fade-out factors.
+        max_visible_distance_to_judgement = 300
+        squared_positional_percentage_to_judgement = (y_pos**2) / ((JUDGEMENT_Y_POSITION - max_visible_distance_to_judgement)**2)
+        
+        # Fade-out.
+        if not is_placed_note:                
+            alpha_decay_factor = 1 - squared_positional_percentage_to_judgement
+            
+            alpha *= alpha_decay_factor
+            alpha = max(0, alpha)
+        # Fade-in
+        else:
+            alpha_growth_factor = 0.5 + squared_positional_percentage_to_judgement
+            alpha_growth_factor = max(1, alpha_growth_factor)
+            
+            alpha *= alpha_growth_factor
+            alpha = min(255, alpha)
+        
+        return alpha
+    
+    # Only show actually placed notes.
+    if NOTE_DISPLAY_MODE == 0:
+        alpha = int(is_placed_note) * 255
+            
+        base_color = NOTE_BASE_COLS[lane] + (alpha,)
+        shadow_color = NOTE_SHADOW_COLS[lane] + (alpha,)
+        accent_color = NOTE_ACCENT_COLS[lane] + (alpha,)
+    
+    # Show raw prediction values as note opacity.
+    # Notes that are not "real" (i.e. not placed) fade out,
+    # notes that are "real" (i.e. placed) fade in.
+    elif NOTE_DISPLAY_MODE == 1:
+        alpha = get_faded_alpha()
+        
+        base_color = NOTE_BASE_COLS[lane] + (alpha,)
+        shadow_color = NOTE_SHADOW_COLS[lane] + (alpha,)
+        accent_color = NOTE_ACCENT_COLS[lane] + (alpha,)
+    
+    # Show raw prediction values as R and B color-channel values.
+    elif NOTE_DISPLAY_MODE == 2:
+        alpha = int((raw_pred_value + 0.75) * 146)
+        
+        r = raw_pred_value * 255
+        g = 0
+        b = (1 - raw_pred_value) * 255
+        
+        base_color = (r, g, b, alpha)
+        accent_color = (min(255, r + 125), 125, min(255, b + 125), alpha)
+        shadow_color = (max(0, r - 125), 0, max(0, b - 125), alpha)
+    
+    # Show raw prediction values as R and B color-channel values
+    # as well as note opacity.
+    else:
+        alpha = get_faded_alpha()
+        
+        r = raw_pred_value * 255
+        g = 0
+        b = (1 - raw_pred_value) * 255
+        
+        base_color = (r, g, b, alpha)
+        accent_color = (min(255, r + 125), 125, min(255, b + 125), alpha)
+        shadow_color = (max(0, r - 125), 0, max(0, b - 125), alpha)
+    
+    return base_color, shadow_color, accent_color
+     
+
+def get_notes_from_gblf(file_path : str) -> list:
     contents = None
     
     with open(file_path, "r") as f:
@@ -118,14 +262,29 @@ def get_notes_from_generated(file_path : str) -> list:
     notes = []
     
     for line in contents:
-        line_contents = line.split(",")
+        line_contents = line.strip().split("|")
         
-        lane_idx = (int(line_contents[0]) - 64) // 128
-        timing = int(line_contents[2])
+        timing = int(line_contents[0])
         
-        note = Note(lane=lane_idx, timing_ms=timing)
+        for lane_idx, lane in enumerate(line_contents[1:]):
+            if lane.isspace():
+                continue
+            
+            lane_info = lane.split(":")
+            
+            is_placed_note = int(lane_info[0])
+            is_placed_note = bool(is_placed_note)
+            
+            raw_pred_value = float(lane_info[1])
         
-        notes.append(note)
+            note = Note(
+                lane=lane_idx,
+                timing_ms=timing,
+                raw_pred_value=raw_pred_value,
+                is_placed_note=is_placed_note
+            )
+            
+            notes.append(note)
     
     return notes
 
@@ -142,13 +301,24 @@ def process_event(event : pygame.event.Event) -> int:
         if event.key in KEY_LANE_MAP:
             last_pressed_times[KEY_LANE_MAP[event.key]] = 0
             keys_held[KEY_LANE_MAP[event.key]] = True
-            return 1
-        
-        global USE_AUTOPLAY
+            return 1    
         
         # Toggle autoplay.
         if event.key == pygame.K_TAB:
+            global USE_AUTOPLAY
             USE_AUTOPLAY = not USE_AUTOPLAY
+            return 0
+        
+        # Toggle note display mode.
+        if event.key == pygame.K_n:
+            global NOTE_DISPLAY_MODE
+            NOTE_DISPLAY_MODE = NOTE_DISPLAY_MODE + 1 if NOTE_DISPLAY_MODE < 3 else 0
+            return 0
+        
+        # Toggle note sprite type.
+        if event.key == pygame.K_m:
+            global NOTE_SPRITE_TYPE
+            NOTE_SPRITE_TYPE = NOTE_SPRITE_TYPE + 1 if NOTE_SPRITE_TYPE < 1 else 0
             return 0
 
         global SCROLL_SPEED
@@ -162,7 +332,7 @@ def process_event(event : pygame.event.Event) -> int:
         if event.key == pygame.K_F4:
             SCROLL_SPEED += 0.1
             SCROLL_SPEED = min(SCROLL_SPEED, 3)
-            return
+            return 0
         
         return 0
     
@@ -183,9 +353,8 @@ def draw_keypress_highlights(surface : pygame.Surface, lane_idx : int, fade_fact
     
     highlight_surface = pygame.Surface((width, height), flags=pygame.SRCALPHA).convert_alpha()
     
-    base_color = NOTE_BASE_COLS[lane_idx]
     alpha = int(255 * fade_factor)
-    fade_color = (*base_color, alpha)
+    fade_color = (*last_pressed_colors[lane_idx][:3], alpha)
     
     highlight_surface.fill(fade_color)
     surface.blit(highlight_surface, (rect_x, rect_y))
@@ -231,7 +400,7 @@ def main():
     # -------- Other settings --------
     quit_game = False
 
-    remaining_notes = get_notes_from_generated(file_path=GENERATED_FILE_PATH)
+    remaining_notes = get_notes_from_gblf(file_path=GENERATED_FILE_PATH)
     active_notes = []
     
     start_time_s = time.time()
@@ -292,8 +461,11 @@ def main():
                 # Update keypress highlighting for autoplay.
                 if USE_AUTOPLAY:
                     lane_idx = active_notes[note_idx].lane
-                    last_pressed_times[lane_idx] = 0
-                    sfx_hit.play()
+                    
+                    if active_notes[note_idx].is_placed_note:
+                        last_pressed_colors[lane_idx] = active_notes[note_idx].base_color
+                        last_pressed_times[lane_idx] = 0
+                        sfx_hit.play()
                 
                 # Remove the note from the active notes list.
                 active_notes.pop(note_idx)
