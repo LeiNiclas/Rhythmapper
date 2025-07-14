@@ -29,7 +29,21 @@ THRESHOLD = args.prediction_threshold
 NOTE_PRECISION = args.note_precision
 
 
-def extract_features(audio_path, bpm, start_ms, sequence_length, note_precision, means, stds):
+def calculate_subbeat_timings(audio_path, audio_start_ms, audio_bpm, note_precision):
+    ms_per_beat = 60_000 / audio_bpm
+    ms_per_subbeat = ms_per_beat / note_precision
+    
+    y, sr = librosa.load(audio_path, sr=None)
+    duration_ms = librosa.get_duration(y=y, sr=sr) * 1000
+    
+    num_subbeats = int((duration_ms - audio_start_ms) // ms_per_subbeat)
+    
+    subbeat_times_ms = [audio_start_ms + (i * ms_per_subbeat) for i in range(num_subbeats)]
+    
+    return subbeat_times_ms
+
+
+def extract_features(audio_path, audio_bpm, audio_start_ms, sequence_length, note_precision, means, stds):
     y, sr = librosa.load(audio_path, sr=None)
     hop_length = 512
     mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=5, hop_length=hop_length).T
@@ -42,13 +56,12 @@ def extract_features(audio_path, bpm, start_ms, sequence_length, note_precision,
     onset_env = onset_env[:max_frames]
     rms = rms[:max_frames]
 
-    # Calculate ms per beat and subbeat.
-    ms_per_beat = 60000 / bpm
-    ms_per_subbeat = ms_per_beat / note_precision
-
-    duration_ms = librosa.get_duration(y=y, sr=sr) * 1000
-    num_subbeats = int((duration_ms - start_ms) // ms_per_subbeat)
-    subbeat_times_ms = [start_ms + i * ms_per_subbeat for i in range(num_subbeats)]
+    subbeat_times_ms = calculate_subbeat_timings(
+        audio_path=audio_path,
+        audio_start_ms=audio_start_ms,
+        audio_bpm=audio_bpm,
+        note_precision=note_precision
+    )
      
     features = []
     
@@ -83,24 +96,26 @@ def extract_features(audio_path, bpm, start_ms, sequence_length, note_precision,
     return features
 
 
-def convert_prediction_to_hit_objects(mania_chart, audio_start_ms, ms_per_subbeat):
-    lane_x = [64, 192, 320, 448]
+def post_process_predictions(raw_predictions):
+    preds_binary = (raw_predictions > THRESHOLD).astype(int)
     
-    hitobjects = []
+    return preds_binary
+
+
+def convert_predictions_to_gblf_format(raw_predictions, post_processed_predictions, subbeat_timings):
+    gblf_contents = ""
     
-    for i, row in enumerate(mania_chart):
-        time = int(audio_start_ms + i * ms_per_subbeat)
+    for i, (raw_prediction, post_processed_prediction) in enumerate(zip(raw_predictions, post_processed_predictions)):
+        pred_line = f"{int(subbeat_timings[i])}|"
         
-        for lane, val in enumerate(row):
-            if val == 1:
-                x = lane_x[lane]
-                y = 192
-                type_ = 1
-                hitSound = 0
-                addition = "0:0:0:0:"
-                hitobjects.append(f"{x},{y},{time},{type_},{hitSound},{addition}")
+        for j in range(len(raw_prediction) - 1):
+            pred_line += f"{post_processed_prediction[j]}:{raw_prediction[j]:.3f}|"
+        
+        pred_line += f"{post_processed_prediction[-1]}:{raw_prediction[-1]:.3f}"
     
-    return hitobjects
+        gblf_contents += pred_line + "\n"
+    
+    return gblf_contents
 
 
 def main():
@@ -112,38 +127,47 @@ def main():
     means = stats["means"]
     stds = stats["stds"]
     
-    features = extract_features(AUDIO_PATH, AUDIO_BPM, AUDIO_START_MS, SEQUENCE_LENGTH, NOTE_PRECISION, means=means, stds=stds)
+    features = extract_features(
+        audio_path=AUDIO_PATH,
+        audio_bpm=AUDIO_BPM,
+        audio_start_ms=AUDIO_START_MS,
+        sequence_length=SEQUENCE_LENGTH,
+        note_precision=NOTE_PRECISION,
+        means=means,
+        stds=stds
+    )
     
     model = tf.keras.models.load_model(MODEL_PATH, compile=False)
     preds = model.predict(features)
-    
-    print("Predictions stats:")
-    print("Shape:", preds.shape)
-    print("Min:", np.min(preds))
-    print("Max:", np.max(preds))
-    print("Mean:", np.mean(preds))
-    
-    preds_bin = (preds > THRESHOLD).astype(int)
+    preds = preds.reshape(-1, preds.shape[-1])
+    preds_bin = post_process_predictions(preds)
     
     note_density = np.mean(preds_bin)
     
+    print("Predictions stats:")
+    print("Min:", np.min(preds))
+    print("Max:", np.max(preds))
+    print("Mean:", np.mean(preds))
     print(f"Note density: {note_density}")
     
-    mania_chart = preds_bin.reshape(-1, preds_bin.shape[-1])
-    
-    ms_per_beat = 60_000 / AUDIO_BPM
-    ms_per_subbeat = ms_per_beat / NOTE_PRECISION
-    
-    hit_objects = convert_prediction_to_hit_objects(
-        mania_chart, AUDIO_START_MS, ms_per_subbeat
+    subbeat_timings = calculate_subbeat_timings(
+        audio_path=AUDIO_PATH,
+        audio_start_ms=AUDIO_START_MS,
+        audio_bpm=AUDIO_BPM,
+        note_precision=NOTE_PRECISION
     )
     
+    gblf_contents = convert_predictions_to_gblf_format(
+        raw_predictions=preds,
+        post_processed_predictions=preds_bin,
+        subbeat_timings=subbeat_timings
+    )
+
     output_path = os.path.join(args.output_dir, args.file_name)
     
-    with open(f"{output_path}.osu", "w", encoding="utf-8") as f:
-        for hit_object in hit_objects:
-            f.write(hit_object + "\n")
-    
+    with open(f"{output_path}.gblf", "w", encoding="utf-8") as f:
+        f.write(gblf_contents)
+
 
 if __name__ == "__main__":
     main()
