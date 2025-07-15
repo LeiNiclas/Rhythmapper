@@ -7,6 +7,7 @@ import tensorflow as tf
 
 
 parser = argparse.ArgumentParser()
+parser.add_argument("--auto_threshold", type=bool, default=True)
 parser.add_argument("--prediction_threshold", type=float, default=0.45)
 parser.add_argument("--sequence_length", type=int, default=64)
 parser.add_argument("--note_precision", type=int, default=2)
@@ -25,8 +26,10 @@ NORM_STATS_PATH = os.path.join(os.getcwd(), "feature_norm_stats.json")
 AUDIO_BPM = args.audio_bpm
 AUDIO_START_MS = args.audio_start_ms
 SEQUENCE_LENGTH = args.sequence_length
-PREDICTION_THRESHOLD = args.prediction_threshold
 NOTE_PRECISION = args.note_precision
+
+USE_AUTO_PREDICTION_THRESHOLD = args.auto_threshold
+PREDICTION_THRESHOLD = args.prediction_threshold
 
 # For development beyond 4K-model generation, this value should also get added to the GUI.
 NUM_LANES = 4
@@ -124,12 +127,16 @@ def compute_combined_prediction_bias(lane_weights, lane_history, num_lanes, hist
     
 
 
-def post_process_predictions(raw_predictions, num_lanes, history_window = 16):
+def post_process_predictions(raw_predictions, num_lanes, history_window = 8):
     binary_preds = []
     lane_history = []
     lane_weights = [ 0 ] * num_lanes
     
     lane_frequencies = [ 0 ] * num_lanes
+    
+    # -------- EXPERIMENTAL --------
+    threshold = np.percentile(raw_predictions, 80) if USE_AUTO_PREDICTION_THRESHOLD else PREDICTION_THRESHOLD
+    # ------------------------------
     
     for lane_pred in raw_predictions:
         binary_lane_preds = [ 0 ] * num_lanes
@@ -148,7 +155,7 @@ def post_process_predictions(raw_predictions, num_lanes, history_window = 16):
         max_pred = adjusted_pred[best_preds_idxs[0]]
         
         # Skip iteration if the highest prediction valuedoes not exceed the threshold.
-        if max_pred < PREDICTION_THRESHOLD:
+        if max_pred < threshold:
             binary_preds.append(binary_lane_preds)
             lane_history.append(binary_lane_preds)
             continue
@@ -164,7 +171,7 @@ def post_process_predictions(raw_predictions, num_lanes, history_window = 16):
             current_pred = adjusted_pred[pred_idx]
             
             delta_ok = ((previous_max_pred - current_pred) <= MAX_PREDICTION_DELTA)
-            threshold_ok = (current_pred >= PREDICTION_THRESHOLD)
+            threshold_ok = (current_pred >= threshold)
             
             # The difference between the current and previous prediction
             # MUST be lower than the maximum prediction delta to get counted
@@ -182,6 +189,8 @@ def post_process_predictions(raw_predictions, num_lanes, history_window = 16):
         binary_preds.append(binary_lane_preds)
         lane_history.append(binary_lane_preds)
     
+    if USE_AUTO_PREDICTION_THRESHOLD:
+        print(f"Automatic threshold: {threshold}")
     print(f"Lane frequencies after post-processing: {lane_frequencies}")
     
     return binary_preds
