@@ -25,9 +25,15 @@ NORM_STATS_PATH = os.path.join(os.getcwd(), "feature_norm_stats.json")
 AUDIO_BPM = args.audio_bpm
 AUDIO_START_MS = args.audio_start_ms
 SEQUENCE_LENGTH = args.sequence_length
-THRESHOLD = args.prediction_threshold
+PREDICTION_THRESHOLD = args.prediction_threshold
 NOTE_PRECISION = args.note_precision
 
+# For development beyond 4K-model generation, this value should also get added to the GUI.
+NUM_LANES = 4
+
+# Make these values adjustable in the GUI for maximum control and audio-specific fine tuning.
+MAX_PREDICTION_DELTA = PREDICTION_THRESHOLD / NUM_LANES
+PREDICTION_FREQUENCY_BIAS = 0.002
 
 def calculate_subbeat_timings(audio_path, audio_start_ms, audio_bpm, note_precision):
     ms_per_beat = 60_000 / audio_bpm
@@ -96,10 +102,89 @@ def extract_features(audio_path, audio_bpm, audio_start_ms, sequence_length, not
     return features
 
 
-def post_process_predictions(raw_predictions):
-    preds_binary = (raw_predictions > THRESHOLD).astype(int)
+def compute_combined_prediction_bias(lane_weights, lane_history, num_lanes, history_window, long_weight=0.3, short_weight=0.7):
+    # Long-term-weights
+    weights_array = np.array(lane_weights)
+    max_weight = max(1.0, np.max(np.abs(weights_array)))
+    normalized_long_weights = weights_array / max_weight
     
-    return preds_binary
+    # Short-term-weights
+    recent_counts = [ 0 ] * num_lanes
+    
+    for past in lane_history[-history_window:]:
+        for idx, val in enumerate(past):
+            recent_counts[idx] += val
+    
+    max_recent = max(1.0, np.max(recent_counts))
+    normalized_short_weights = np.array(recent_counts) / max_recent
+    
+    # Combine biases.
+    combined_bias = (long_weight * normalized_long_weights) + (short_weight * normalized_short_weights)
+    return combined_bias
+    
+
+
+def post_process_predictions(raw_predictions, num_lanes, history_window = 16):
+    binary_preds = []
+    lane_history = []
+    lane_weights = [ 0 ] * num_lanes
+    
+    lane_frequencies = [ 0 ] * num_lanes
+    
+    for lane_pred in raw_predictions:
+        binary_lane_preds = [ 0 ] * num_lanes
+        
+        combined_bias = compute_combined_prediction_bias(
+            lane_weights=lane_weights,
+            lane_history=lane_history,
+            num_lanes=num_lanes,
+            history_window=history_window
+        )
+        
+        adjusted_pred = np.array(lane_pred) - combined_bias * PREDICTION_FREQUENCY_BIAS
+        
+        # Store the indices of the best predictions in descending order.
+        best_preds_idxs = np.argsort(adjusted_pred)[::-1]
+        max_pred = adjusted_pred[best_preds_idxs[0]]
+        
+        # Skip iteration if the highest prediction valuedoes not exceed the threshold.
+        if max_pred < PREDICTION_THRESHOLD:
+            binary_preds.append(binary_lane_preds)
+            lane_history.append(binary_lane_preds)
+            continue
+        
+        binary_lane_preds[best_preds_idxs[0]] = 1
+        
+        # Rename max_pred to current_pred for clarity.
+        current_pred = max_pred
+        
+        # Loop over all other predictions until the delta between two predictions exceeds a limit.
+        for pred_idx in best_preds_idxs[1:]:
+            previous_max_pred = current_pred
+            current_pred = adjusted_pred[pred_idx]
+            
+            delta_ok = ((previous_max_pred - current_pred) <= MAX_PREDICTION_DELTA)
+            threshold_ok = (current_pred >= PREDICTION_THRESHOLD)
+            
+            # The difference between the current and previous prediction
+            # MUST be lower than the maximum prediction delta to get counted
+            # as an actual note whilst still surpassing the original prediction threshold.
+            if delta_ok and threshold_ok:
+                binary_lane_preds[pred_idx] = 1
+            else:
+                break
+        
+        for lane_idx in range(num_lanes):
+            sign = 1 if (binary_lane_preds[lane_idx] == 1) else -1
+            lane_weights[lane_idx] += sign * lane_pred[lane_idx]
+            lane_frequencies[lane_idx] += np.sign(binary_lane_preds[lane_idx])
+
+        binary_preds.append(binary_lane_preds)
+        lane_history.append(binary_lane_preds)
+    
+    print(f"Lane frequencies after post-processing: {lane_frequencies}")
+    
+    return binary_preds
 
 
 def convert_predictions_to_gblf_format(raw_predictions, post_processed_predictions, subbeat_timings):
@@ -140,7 +225,7 @@ def main():
     model = tf.keras.models.load_model(MODEL_PATH, compile=False)
     preds = model.predict(features)
     preds = preds.reshape(-1, preds.shape[-1])
-    preds_bin = post_process_predictions(preds)
+    preds_bin = post_process_predictions(preds, num_lanes=NUM_LANES)
     
     note_density = np.mean(preds_bin)
     
