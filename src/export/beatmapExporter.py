@@ -144,7 +144,7 @@ def create_osu_file_template(audio_file_name : str, beatmap_file_path : str, des
         
         timing = int(line_contents[0])
         
-        lanes = line_contents[:1]
+        lanes = line_contents[1:]
         
         for lane_idx, lane in enumerate(lanes):
             note_present = (lane.split(":")[0] == "1")
@@ -203,7 +203,7 @@ def create_qua_file_template(audio_file_name : str, beatmap_file_path : str, des
         
         timing = int(line_contents[0])
         
-        lanes = line_contents[:1]
+        lanes = line_contents[1:]
         
         for lane_idx, lane in enumerate(lanes):
             note_present = (lane.split(":")[0] == "1")
