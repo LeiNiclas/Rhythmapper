@@ -7,3 +7,5 @@ generation/
 __pycache__
 
 checkpoint_model.keras
+
+config_*
