@@ -1,0 +1,6 @@
+librosa>=0.10.0     # For audio analysis.
+matplotlib>=3.7.0   # For plotting.
+numpy>=1.23.0,<2.0  # For math.
+pandas>=1.5.0       # For reading CSVs.
+pygame>=2.1.0       # For visualizer. 
+tensorflow<2.11     # Core library. <2.11 for native GPU support.

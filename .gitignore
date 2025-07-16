@@ -7,4 +7,3 @@ generation/
 __pycache__
 
 checkpoint_model.keras
-feature_norm_stats.json
