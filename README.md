@@ -1,5 +1,6 @@
-# osu!-mania level generator
-This is an experimental project aiming to create osu!-mania beatmaps using an LSTM-based model. Currently, trained models are able to generate 4K-beatmap data.
+# Rhythmapper
+***Rhythmapper*** is an experimental tool that uses LSTM-based neural network models to generate beatmaps for rhythm games like [osu!](https://osu.ppy.sh/)-mania or [Quaver](https://quavergame.com/).
+The system can transform any audio file into structured and playable 4K beatmap data (i.e. with 4 lanes), enabling automatic chart creation synced to the song's rhythm.
 
 
 ## 📁 Directory structure
@@ -168,3 +169,10 @@ Each setting has an intuitive interface, and changes can be saved with:
 - **Save and Quit**
 - **Save and Run** (triggers `runPipeline.py`)
 - **Export** (triggers `beatmapExporter.py`)
+
+---
+>⚠️ *Note that Commits prior to* 0f91584 *follow a custom format like* "[#XXX-F] commit-msg"*, which might look unconventional*.
+> *Originally, this repository wasn't intended to be public - I just had fun with it locally. In hindsight, not the brightest choice for long-term clarity.*
+>
+> *Starting from commit* 0f91584, *commit messages aim to be clearer and more structured.*
+
