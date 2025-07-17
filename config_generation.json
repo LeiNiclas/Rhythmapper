@@ -1,8 +1,7 @@
 {
-    "audio_bpm": 124.0,
-    "audio_start_ms": 124,
+    "audio_bpm": 0,
+    "audio_start_ms": 0,
     "run_level_generator": true,
     "run_visualizer": true,
-    "visualizer_use_last_gen": true,
-    "export_format": ".osz"
+    "visualizer_use_last_gen": true
 }

@@ -105,7 +105,7 @@ def main():
         audio_path = config_paths["visualizer_audio_path"]
         
         if config_generation.get("visualizer_use_last_gen", True):
-            beatmap_path = os.path.join(config_paths["generation_dir"], f"{config_paths['generation_file_name']}.osu")
+            beatmap_path = os.path.join(config_paths["generation_dir"], f"{config_paths['generation_file_name']}.gblf")
             audio_path = config_paths["audio_file_path"]
         
         run_step([

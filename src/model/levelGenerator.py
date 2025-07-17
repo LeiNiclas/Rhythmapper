@@ -7,6 +7,7 @@ import tensorflow as tf
 
 
 parser = argparse.ArgumentParser()
+parser.add_argument("--auto_threshold", type=bool, default=True)
 parser.add_argument("--prediction_threshold", type=float, default=0.45)
 parser.add_argument("--sequence_length", type=int, default=64)
 parser.add_argument("--note_precision", type=int, default=2)
@@ -25,11 +26,33 @@ NORM_STATS_PATH = os.path.join(os.getcwd(), "feature_norm_stats.json")
 AUDIO_BPM = args.audio_bpm
 AUDIO_START_MS = args.audio_start_ms
 SEQUENCE_LENGTH = args.sequence_length
-THRESHOLD = args.prediction_threshold
 NOTE_PRECISION = args.note_precision
 
+USE_AUTO_PREDICTION_THRESHOLD = args.auto_threshold
+PREDICTION_THRESHOLD = args.prediction_threshold
 
-def extract_features(audio_path, bpm, start_ms, sequence_length, note_precision, means, stds):
+# For development beyond 4K-model generation, this value should also get added to the GUI.
+NUM_LANES = 4
+
+# Make these values adjustable in the GUI for maximum control and audio-specific fine tuning.
+MAX_PREDICTION_DELTA = PREDICTION_THRESHOLD / NUM_LANES
+PREDICTION_FREQUENCY_BIAS = 0.002
+
+def calculate_subbeat_timings(audio_path, audio_start_ms, audio_bpm, note_precision):
+    ms_per_beat = 60_000 / audio_bpm
+    ms_per_subbeat = ms_per_beat / note_precision
+    
+    y, sr = librosa.load(audio_path, sr=None)
+    duration_ms = librosa.get_duration(y=y, sr=sr) * 1000
+    
+    num_subbeats = int((duration_ms - audio_start_ms) // ms_per_subbeat)
+    
+    subbeat_times_ms = [audio_start_ms + (i * ms_per_subbeat) for i in range(num_subbeats)]
+    
+    return subbeat_times_ms
+
+
+def extract_features(audio_path, audio_bpm, audio_start_ms, sequence_length, note_precision, means, stds):
     y, sr = librosa.load(audio_path, sr=None)
     hop_length = 512
     mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=5, hop_length=hop_length).T
@@ -42,13 +65,12 @@ def extract_features(audio_path, bpm, start_ms, sequence_length, note_precision,
     onset_env = onset_env[:max_frames]
     rms = rms[:max_frames]
 
-    # Calculate ms per beat and subbeat.
-    ms_per_beat = 60000 / bpm
-    ms_per_subbeat = ms_per_beat / note_precision
-
-    duration_ms = librosa.get_duration(y=y, sr=sr) * 1000
-    num_subbeats = int((duration_ms - start_ms) // ms_per_subbeat)
-    subbeat_times_ms = [start_ms + i * ms_per_subbeat for i in range(num_subbeats)]
+    subbeat_times_ms = calculate_subbeat_timings(
+        audio_path=audio_path,
+        audio_start_ms=audio_start_ms,
+        audio_bpm=audio_bpm,
+        note_precision=note_precision
+    )
      
     features = []
     
@@ -83,24 +105,111 @@ def extract_features(audio_path, bpm, start_ms, sequence_length, note_precision,
     return features
 
 
-def convert_prediction_to_hit_objects(mania_chart, audio_start_ms, ms_per_subbeat):
-    lane_x = [64, 192, 320, 448]
+def compute_combined_prediction_bias(lane_weights, lane_history, num_lanes, history_window, long_weight=0.3, short_weight=0.7):
+    # Long-term-weights
+    weights_array = np.array(lane_weights)
+    max_weight = max(1.0, np.max(np.abs(weights_array)))
+    normalized_long_weights = weights_array / max_weight
     
-    hitobjects = []
+    # Short-term-weights
+    recent_counts = [ 0 ] * num_lanes
     
-    for i, row in enumerate(mania_chart):
-        time = int(audio_start_ms + i * ms_per_subbeat)
+    for past in lane_history[-history_window:]:
+        for idx, val in enumerate(past):
+            recent_counts[idx] += val
+    
+    max_recent = max(1.0, np.max(recent_counts))
+    normalized_short_weights = np.array(recent_counts) / max_recent
+    
+    # Combine biases.
+    combined_bias = (long_weight * normalized_long_weights) + (short_weight * normalized_short_weights)
+    return combined_bias
+    
+
+
+def post_process_predictions(raw_predictions, num_lanes, history_window = 8):
+    binary_preds = []
+    lane_history = []
+    lane_weights = [ 0 ] * num_lanes
+    
+    lane_frequencies = [ 0 ] * num_lanes
+    
+    # -------- EXPERIMENTAL --------
+    threshold = np.percentile(raw_predictions, 80) if USE_AUTO_PREDICTION_THRESHOLD else PREDICTION_THRESHOLD
+    # ------------------------------
+    
+    for lane_pred in raw_predictions:
+        binary_lane_preds = [ 0 ] * num_lanes
         
-        for lane, val in enumerate(row):
-            if val == 1:
-                x = lane_x[lane]
-                y = 192
-                type_ = 1
-                hitSound = 0
-                addition = "0:0:0:0:"
-                hitobjects.append(f"{x},{y},{time},{type_},{hitSound},{addition}")
+        combined_bias = compute_combined_prediction_bias(
+            lane_weights=lane_weights,
+            lane_history=lane_history,
+            num_lanes=num_lanes,
+            history_window=history_window
+        )
+        
+        adjusted_pred = np.array(lane_pred) - combined_bias * PREDICTION_FREQUENCY_BIAS
+        
+        # Store the indices of the best predictions in descending order.
+        best_preds_idxs = np.argsort(adjusted_pred)[::-1]
+        max_pred = adjusted_pred[best_preds_idxs[0]]
+        
+        # Skip iteration if the highest prediction valuedoes not exceed the threshold.
+        if max_pred < threshold:
+            binary_preds.append(binary_lane_preds)
+            lane_history.append(binary_lane_preds)
+            continue
+        
+        binary_lane_preds[best_preds_idxs[0]] = 1
+        
+        # Rename max_pred to current_pred for clarity.
+        current_pred = max_pred
+        
+        # Loop over all other predictions until the delta between two predictions exceeds a limit.
+        for pred_idx in best_preds_idxs[1:]:
+            previous_max_pred = current_pred
+            current_pred = adjusted_pred[pred_idx]
+            
+            delta_ok = ((previous_max_pred - current_pred) <= MAX_PREDICTION_DELTA)
+            threshold_ok = (current_pred >= threshold)
+            
+            # The difference between the current and previous prediction
+            # MUST be lower than the maximum prediction delta to get counted
+            # as an actual note whilst still surpassing the original prediction threshold.
+            if delta_ok and threshold_ok:
+                binary_lane_preds[pred_idx] = 1
+            else:
+                break
+        
+        for lane_idx in range(num_lanes):
+            sign = 1 if (binary_lane_preds[lane_idx] == 1) else -1
+            lane_weights[lane_idx] += sign * lane_pred[lane_idx]
+            lane_frequencies[lane_idx] += np.sign(binary_lane_preds[lane_idx])
+
+        binary_preds.append(binary_lane_preds)
+        lane_history.append(binary_lane_preds)
     
-    return hitobjects
+    if USE_AUTO_PREDICTION_THRESHOLD:
+        print(f"Automatic threshold: {threshold}")
+    print(f"Lane frequencies after post-processing: {lane_frequencies}")
+    
+    return binary_preds
+
+
+def convert_predictions_to_gblf_format(raw_predictions, post_processed_predictions, subbeat_timings):
+    gblf_contents = ""
+    
+    for i, (raw_prediction, post_processed_prediction) in enumerate(zip(raw_predictions, post_processed_predictions)):
+        pred_line = f"{int(subbeat_timings[i])}|"
+        
+        for j in range(len(raw_prediction) - 1):
+            pred_line += f"{post_processed_prediction[j]}:{raw_prediction[j]:.3f}|"
+        
+        pred_line += f"{post_processed_prediction[-1]}:{raw_prediction[-1]:.3f}"
+    
+        gblf_contents += pred_line + "\n"
+    
+    return gblf_contents
 
 
 def main():
@@ -112,38 +221,47 @@ def main():
     means = stats["means"]
     stds = stats["stds"]
     
-    features = extract_features(AUDIO_PATH, AUDIO_BPM, AUDIO_START_MS, SEQUENCE_LENGTH, NOTE_PRECISION, means=means, stds=stds)
+    features = extract_features(
+        audio_path=AUDIO_PATH,
+        audio_bpm=AUDIO_BPM,
+        audio_start_ms=AUDIO_START_MS,
+        sequence_length=SEQUENCE_LENGTH,
+        note_precision=NOTE_PRECISION,
+        means=means,
+        stds=stds
+    )
     
     model = tf.keras.models.load_model(MODEL_PATH, compile=False)
     preds = model.predict(features)
-    
-    print("Predictions stats:")
-    print("Shape:", preds.shape)
-    print("Min:", np.min(preds))
-    print("Max:", np.max(preds))
-    print("Mean:", np.mean(preds))
-    
-    preds_bin = (preds > THRESHOLD).astype(int)
+    preds = preds.reshape(-1, preds.shape[-1])
+    preds_bin = post_process_predictions(preds, num_lanes=NUM_LANES)
     
     note_density = np.mean(preds_bin)
     
+    print("Predictions stats:")
+    print("Min:", np.min(preds))
+    print("Max:", np.max(preds))
+    print("Mean:", np.mean(preds))
     print(f"Note density: {note_density}")
     
-    mania_chart = preds_bin.reshape(-1, preds_bin.shape[-1])
-    
-    ms_per_beat = 60_000 / AUDIO_BPM
-    ms_per_subbeat = ms_per_beat / NOTE_PRECISION
-    
-    hit_objects = convert_prediction_to_hit_objects(
-        mania_chart, AUDIO_START_MS, ms_per_subbeat
+    subbeat_timings = calculate_subbeat_timings(
+        audio_path=AUDIO_PATH,
+        audio_start_ms=AUDIO_START_MS,
+        audio_bpm=AUDIO_BPM,
+        note_precision=NOTE_PRECISION
     )
     
+    gblf_contents = convert_predictions_to_gblf_format(
+        raw_predictions=preds,
+        post_processed_predictions=preds_bin,
+        subbeat_timings=subbeat_timings
+    )
+
     output_path = os.path.join(args.output_dir, args.file_name)
     
-    with open(f"{output_path}.osu", "w", encoding="utf-8") as f:
-        for hit_object in hit_objects:
-            f.write(hit_object + "\n")
-    
+    with open(f"{output_path}.gblf", "w", encoding="utf-8") as f:
+        f.write(gblf_contents)
+
 
 if __name__ == "__main__":
     main()
