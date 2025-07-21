@@ -142,20 +142,23 @@ class ConfigEditor:
         notebook = ttk.Notebook(self.root)
         notebook.pack(fill="both", expand=True)
 
+        self.pipeline_frame = ttk.Frame(notebook)
         self.download_frame = ttk.Frame(notebook)
         self.training_frame = ttk.Frame(notebook)
         self.generation_frame = ttk.Frame(notebook)
         self.export_frame = ttk.Frame(notebook)
         
-        for frame in [self.download_frame, self.training_frame, self.generation_frame, self.export_frame]:
+        for frame in [self.pipeline_frame, self.download_frame, self.training_frame, self.generation_frame, self.export_frame]:
             for col in range(3):
                 frame.columnconfigure(col, weight=1)
         
+        notebook.add(self.pipeline_frame, text="Pipeline")
         notebook.add(self.download_frame, text="Download & Preprocess")
         notebook.add(self.training_frame, text="Sequence & Training")
         notebook.add(self.generation_frame, text="Generation & Visualizer")
         notebook.add(self.export_frame, text="Beatmap Export")
         
+        self.build_pipeline_frame()
         self.build_download_frame()
         self.build_training_frame()
         self.build_generation_frame()
@@ -170,6 +173,40 @@ class ConfigEditor:
         ttk.Button(btn_frame, text="Save & Run", command=self.save_and_run).grid(row=0, column=2, padx=5)
         ttk.Button(btn_frame, text="Export", command=self.export).grid(row=0, column=3, padx=[5, 50])
         ttk.Button(btn_frame, text="View Console Output", command=self.open_output_window).grid(row=0, column=4, padx=[5, 50])
+        
+        self.toggle_threshold_mode()
+
+
+    def build_pipeline_frame(self) -> None:
+        # -------- Pipeline steps --------
+        self.add_header(self.pipeline_frame, 0, "Pipeline steps")
+        
+        self.add_checkbox(self.pipeline_frame, "Run Beatmap Downloader", "run_beatmap_downloader", config=self.model_config)
+        self.add_checkbox(self.pipeline_frame, "Run Beatmap Preprocessor", "run_beatmap_preprocessor", config=self.model_config)
+        self.add_checkbox(self.pipeline_frame, "Run Feature Normalizer", "run_feature_normalizer", config=self.model_config)
+        self.add_checkbox(self.pipeline_frame, "Run Sequence Splitter", "run_sequence_splitter", config=self.model_config)
+        self.add_checkbox(self.pipeline_frame, "Run Model Trainer", "run_model_trainer", config=self.model_config)
+        self.add_checkbox(self.pipeline_frame, "Run Beatmap Generator", "run_level_generator", config=self.generation_config)
+        self.add_checkbox(self.pipeline_frame, "Run Visualizer (after generation)", "run_visualizer", config=self.generation_config)
+        # --------------------------------
+        
+        self.add_separator(self.pipeline_frame, 8)
+        
+        # -------- Step buttons --------
+        self.add_header(self.pipeline_frame, 9, "Actions")
+        
+        action_btn_frame = ttk.Frame(self.pipeline_frame)
+        action_btn_frame.grid(row=10, column=0, padx=20, pady=(5, 15), sticky="w")
+        
+        action_btn_frame.grid_columnconfigure(0, weight=1)
+        
+        btn_width = 25
+        
+        ttk.Button(action_btn_frame, text="Run Selected Steps", width=btn_width, command=self.save_and_run).grid(row=0, column=0, pady=10, sticky="ew")
+        ttk.Button(action_btn_frame, text="Reset Settings", width=btn_width, command=self.reset_settings).grid(row=1, column=0, pady=10, sticky="ew")
+        ttk.Button(action_btn_frame, text="Delete Generated Files", width=btn_width, command=self.delete_gen_files).grid(row=2, column=0, pady=10, sticky="ew")
+        ttk.Button(action_btn_frame, text="Construct Directory Structure", width=btn_width, command=self.construct_dir_struct).grid(row=3, column=0, pady=10, sticky="ew")
+        # ------------------------------
 
 
     def build_download_frame(self) -> None:
@@ -188,15 +225,6 @@ class ConfigEditor:
         self.add_spinbox(self.download_frame, "Number of Beatmapsets to download:", "download_beatmapsets", from_=100, to=2000)
         # -----------------------------------
 
-        self.add_separator(self.download_frame, 6)
-
-        # -------- Pipeline settings --------
-        self.add_header(self.download_frame, 7, "Pipeline settings")
-        
-        self.add_checkbox(self.download_frame, "Run Beatmap Downloader", "run_beatmap_downloader", config=self.model_config)
-        self.add_checkbox(self.download_frame, "Run Beatmap Preprocessor", "run_beatmap_preprocessor", config=self.model_config)
-        # -----------------------------------
-
 
     def build_training_frame(self) -> None:
         # -------- Training settings --------
@@ -209,16 +237,6 @@ class ConfigEditor:
         self.add_int_entry(self.training_frame, "Max VRAM for GPU Training (MB):", "max_vram_mb")
         self.add_spinbox(self.training_frame, "Training epochs:", "training_epochs", from_=1, to=1000)
         self.add_path_entry(self.training_frame, "Model output directory:", "model_dir")
-        # -----------------------------------
-        
-        self.add_separator(self.training_frame, 8)
-        
-        # -------- Pipeline settings --------
-        self.add_header(self.training_frame, 9, "Pipeline settings")
-        
-        self.add_checkbox(self.training_frame, "Run Feature Normalizer", "run_feature_normalizer", config=self.model_config)
-        self.add_checkbox(self.training_frame, "Run Sequence Splitter", "run_sequence_splitter", config=self.model_config)
-        self.add_checkbox(self.training_frame, "Run Model Trainer", "run_model_trainer", config=self.model_config)
         # -----------------------------------
 
 
@@ -239,30 +257,28 @@ class ConfigEditor:
         self.add_path_entry(self.generation_frame, "Generation Output Folder:", "generation_dir")
         self.add_str_entry(self.generation_frame, "Beatmap File Name:", "generation_file_name", config=self.paths_config)
         self.add_file_entry(self.generation_frame, "Model to use for Generation:", "model_for_generation_path")
-        self.add_float_entry(self.generation_frame, "Model Prediction Threshold:", "prediction_threshold")
         # -------------------------------------
         
-        self.add_separator(self.generation_frame, 10)
+        self.show_advanced_generation = tk.BooleanVar(value=False)
+        self.show_advanced_generation_cb = ttk.Checkbutton(
+            self.generation_frame,
+            text="Show advanced Threshold Setttings",
+            variable=self.show_advanced_generation,
+            command=self.toggle_advanced_generation_frame
+        )
+        self.show_advanced_generation_cb.grid(row=10, column=0, columnspan=1, pady=(10, 10), sticky="w")
         
-        # -------- Fallback settings --------
-        self.add_header(self.generation_frame, 11, "Fallback Visualizer settings")
-        
+        self.advanced_generation_frame = ttk.Frame(self.generation_frame, borderwidth=1, relief="groove")
+        self.advanced_generation_frame.grid(row=11, column=0, columnspan=3, padx=5, pady=5, sticky="ew")
 
-        self.add_file_entry(self.generation_frame, "Visualizer Beatmap (.osu) File:", "visualizer_beatmap_path")
-        self.add_file_entry(self.generation_frame, "Visualizer Audio File:", "visualizer_audio_path")
-        # -----------------------------------
-        
-        self.add_separator(self.generation_frame, 14)
-        
-        # -------- Pipeline settings --------
-        self.add_header(self.generation_frame, 15, "Pipeline settings")
-        
-        self.add_checkbox(self.generation_frame, "Run Level Generator", "run_level_generator", config=self.generation_config)
-        self.run_visualizer_var = self.add_checkbox(self.generation_frame, "Run Visualizer After Generation", "run_visualizer", config=self.generation_config)
-        self.use_last_generated_level_var = self.add_checkbox(self.generation_frame, "Use Latest Generated file for Visualizer", "visualizer_use_last_gen", config=self.generation_config)
-        # -----------------------------------
+        self.manual_threshold_entry = self.add_float_entry(self.advanced_generation_frame, "Model Prediction Threshold", "model_prediction_threshold", config=self.generation_config)
+        self.use_auto_threshold = self.add_checkbox(self.advanced_generation_frame, "Use Auto Thresholding", "model_use_auto_threshold", config=self.generation_config, command=self.toggle_threshold_mode)
+        self.percentile_entry = self.add_float_entry(self.advanced_generation_frame, "Auto Threshold Percentile", "model_auto_threshold_percentile", config=self.generation_config)
 
-    
+        self.toggle_advanced_generation_frame()
+        self.toggle_threshold_mode()
+
+
     def build_export_frame(self) -> None:
         # -------- Path settings --------
         self.add_header(self.export_frame, 0, "Export paths")
@@ -391,7 +407,7 @@ class ConfigEditor:
         return entry
 
 
-    def add_checkbox(self, frame : ttk.Frame, label : str, key : str, config, is_config_var : bool = True) -> tk.BooleanVar:
+    def add_checkbox(self, frame : ttk.Frame, label : str, key : str, config, is_config_var : bool = True, command = None) -> tk.BooleanVar:
         row = frame.grid_size()[1]
         var = tk.BooleanVar(value=config.get(key, False))
         cb = tk.Checkbutton(
@@ -399,13 +415,28 @@ class ConfigEditor:
             bg=BG_COL, fg=FONT_COL,
             selectcolor=ACCENT_COL,
             font=("Segoe UI", 10),
-            anchor="w"
+            anchor="w",
+            command=command
         )
         cb.grid(row=row, column=0, columnspan=3, sticky="w", pady=2, padx=5)
 
         if is_config_var:
             config[key] = var
         return var
+
+
+    def toggle_threshold_mode(self):
+        auto_mode = self.use_auto_threshold.get()
+        
+        self.manual_threshold_entry.configure(state="disabled" if auto_mode else "normal")
+        self.percentile_entry.configure(state="normal" if auto_mode else "disabled")
+
+    
+    def toggle_advanced_generation_frame(self):
+        if self.show_advanced_generation.get():
+            self.advanced_generation_frame.grid(row=11, column=0, columnspan=3, padx=5, pady=5, sticky="ew")
+        else:
+            self.advanced_generation_frame.grid_remove()
 
 
     def export(self) -> None:
@@ -501,7 +532,19 @@ class ConfigEditor:
                 self.console_text_widget.config(state="disabled")
         else:
             subprocess.run(["python", "runPipeline.py"])
-        
+    
+    
+    def reset_settings(self) -> None:
+        pass
+
+
+    def delete_gen_files(self) -> None:
+        pass
+
+
+    def construct_dir_struct(self) -> None:
+        pass
+
 
 if __name__ == "__main__":
     root = tk.Tk()

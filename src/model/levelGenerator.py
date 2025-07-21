@@ -8,7 +8,6 @@ import tensorflow as tf
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--auto_threshold", type=bool, default=True)
-parser.add_argument("--prediction_threshold", type=float, default=0.45)
 parser.add_argument("--sequence_length", type=int, default=64)
 parser.add_argument("--note_precision", type=int, default=2)
 parser.add_argument("--audio_bpm", type=float, default=100)
@@ -17,6 +16,9 @@ parser.add_argument("--audio_file_path", type=str, default="")
 parser.add_argument("--model_path", type=str, default=os.path.join(os.getcwd(), "models", "model-3-4_stars-P4-S128-V3.keras"))
 parser.add_argument("--output_dir", type=str, default=os.path.join(os.getcwd(), "generation"))
 parser.add_argument("--file_name", type=str, default="test")
+parser.add_argument("--prediction_threshold", type=float, default=0.45)
+parser.add_argument("--use_auto_threshold", type=bool, default=True)
+parser.add_argument("--auto_threshold_percentile", type=float, default=82.5)
 args = parser.parse_args()
 
 AUDIO_PATH = args.audio_file_path
@@ -28,8 +30,9 @@ AUDIO_START_MS = args.audio_start_ms
 SEQUENCE_LENGTH = args.sequence_length
 NOTE_PRECISION = args.note_precision
 
-USE_AUTO_PREDICTION_THRESHOLD = args.auto_threshold
+USE_AUTO_PREDICTION_THRESHOLD = args.use_auto_threshold
 PREDICTION_THRESHOLD = args.prediction_threshold
+AUTO_THRESHOLD_PERCENTILE = args.auto_threshold_percentile
 
 # For development beyond 4K-model generation, this value should also get added to the GUI.
 NUM_LANES = 4
@@ -105,7 +108,7 @@ def extract_features(audio_path, audio_bpm, audio_start_ms, sequence_length, not
     return features
 
 
-def compute_combined_prediction_bias(lane_weights, lane_history, num_lanes, history_window, long_weight=0.3, short_weight=0.7):
+def compute_combined_prediction_bias(lane_weights, lane_history, num_lanes, history_window, long_weight=0.2, short_weight=0.8):
     # Long-term-weights
     weights_array = np.array(lane_weights)
     max_weight = max(1.0, np.max(np.abs(weights_array)))
@@ -134,9 +137,7 @@ def post_process_predictions(raw_predictions, num_lanes, history_window = 8):
     
     lane_frequencies = [ 0 ] * num_lanes
     
-    # -------- EXPERIMENTAL --------
-    threshold = np.percentile(raw_predictions, 80) if USE_AUTO_PREDICTION_THRESHOLD else PREDICTION_THRESHOLD
-    # ------------------------------
+    threshold = np.percentile(raw_predictions, AUTO_THRESHOLD_PERCENTILE) if USE_AUTO_PREDICTION_THRESHOLD else PREDICTION_THRESHOLD
     
     for lane_pred in raw_predictions:
         binary_lane_preds = [ 0 ] * num_lanes

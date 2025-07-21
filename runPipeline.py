@@ -91,12 +91,15 @@ def main():
             "--audio_bpm", str(config_generation["audio_bpm"]),
             "--audio_start_ms", str(config_generation["audio_start_ms"]),
             "--note_precision", str(config_model["note_precision"]),
-            "--prediction_threshold", str(config_model["prediction_threshold"]),
             "--sequence_length", str(config_model["sequence_length"]),
             "--audio_file_path", config_paths["audio_file_path"],
             "--model_path", config_paths["model_for_generation_path"],
             "--output_dir", config_paths["generation_dir"],
-            "--file_name", config_paths["generation_file_name"]
+            "--file_name", config_paths["generation_file_name"],
+            #
+            "--prediction_threshold", str(config_generation["model_prediction_threshold"]),
+            "--use_auto_threshold", str(config_generation["model_use_auto_threshold"]),
+            "--auto_threshold_percentile", str(config_generation["model_auto_threshold_percentile"])
         ], "Generate Level")
 
     # Step 7: Run visualizer if enabled
