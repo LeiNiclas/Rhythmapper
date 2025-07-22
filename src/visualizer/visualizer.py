@@ -16,10 +16,12 @@ HIT_SFX_FILE_PATH = os.path.join(os.getcwd(), "src", "visualizer", "hit_sfx.mp3"
 # The hit SFX is royalty free.
 # Download: https://pixabay.com/sound-effects/electronic-closed-hat-11-stereo-100413/
 
-VISUALIZER_VERSION = "1.5"
+VISUALIZER_VERSION = "1.6"
 FPS = 144
 
 # -------- Colors --------
+USE_DARKMODE = True
+
 NOTE_L0_BASE_COL = (200, 150, 255)
 NOTE_L0_ACCENT_COL = (225, 175, 255)
 NOTE_L0_SHADOW_COL = (75, 25, 130)
@@ -40,8 +42,11 @@ NOTE_BASE_COLS = [ NOTE_L0_BASE_COL, NOTE_L1_BASE_COL, NOTE_L2_BASE_COL, NOTE_L3
 NOTE_ACCENT_COLS = [ NOTE_L0_ACCENT_COL, NOTE_L1_ACCENT_COL, NOTE_L2_ACCENT_COL, NOTE_L3_ACCENT_COL ]
 NOTE_SHADOW_COLS = [ NOTE_L0_SHADOW_COL, NOTE_L1_SHADOW_COL, NOTE_L2_SHADOW_COL, NOTE_L3_SHADOW_COL ]
 
-BG_COL = (225, 225, 255)
-BG_ACCENT_COL = (240, 240, 255)
+LIGHTMODE_BG_COL = (225, 225, 255)
+LIGHTMODE_BG_ACCENT_COL = (240, 240, 255)
+
+DARKMODE_BG_COL = (27, 27, 27)
+DARMODE_BG_ACCENT_COL = (42, 42, 42)
 
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
@@ -79,8 +84,6 @@ JUDGEMENT_Y_POSITION = BASE_HEIGHT - JUDGEMENT_DISTANCE_TO_BOTTOM
 
 SCROLL_SPEED = 1.2
 # -------------------------
-
-
 
 
 class Note():
@@ -320,7 +323,7 @@ def process_event(event : pygame.event.Event) -> int:
             return 0
         
         # Toggle note sprite type.
-        if event.key == pygame.K_m:
+        if event.key == pygame.K_s:
             global NOTE_SPRITE_TYPE
             NOTE_SPRITE_TYPE = NOTE_SPRITE_TYPE + 1 if NOTE_SPRITE_TYPE < 1 else 0
             return 0
@@ -338,6 +341,13 @@ def process_event(event : pygame.event.Event) -> int:
             SCROLL_SPEED = min(SCROLL_SPEED, 3)
             return 0
         
+        global USE_DARKMODE
+        
+        # Toggle Darkmode.
+        if event.key == pygame.K_r:
+            USE_DARKMODE = not USE_DARKMODE
+            return 0
+
         return 0
     
     # Reset keys-held values for highlight fade-out.
@@ -373,11 +383,13 @@ def draw_judgement_line(surface : pygame.Surface) -> None:
         start_pos=(0, JUDGEMENT_Y_POSITION),
         end_pos=(540, JUDGEMENT_Y_POSITION)
     )
-        
+    
+    below_judgement_col =  DARMODE_BG_ACCENT_COL if USE_DARKMODE else LIGHTMODE_BG_ACCENT_COL
+    
     # Area below judgement line.
     pygame.draw.rect(
         surface=surface,
-        color=BG_ACCENT_COL,
+        color=below_judgement_col,
         rect=((0, JUDGEMENT_Y_POSITION, REF_WIDTH, REF_HEIGHT))
     )
 
@@ -439,7 +451,9 @@ def main():
             if event_feedback == 1:
                 sfx_hit.play()
         
-        virtual_surface.fill(color=BG_COL)
+        bg_col = DARKMODE_BG_COL if USE_DARKMODE else LIGHTMODE_BG_COL
+        
+        virtual_surface.fill(color=bg_col)
         
         current_time_s = time.time() - start_time_s
         current_time_ms = current_time_s * 1000
