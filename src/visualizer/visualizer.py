@@ -1,4 +1,5 @@
 import argparse
+import math
 import os
 import pygame
 import time
@@ -236,26 +237,26 @@ def get_note_colors(lane, is_placed_note, raw_pred_value, y_pos):
     elif NOTE_DISPLAY_MODE == 2:
         alpha = int((raw_pred_value + 0.75) * 146)
         
-        r = raw_pred_value * 255
-        g = 0
-        b = (1 - raw_pred_value) * 255
+        r = max(0, -math.cos(raw_pred_value * math.pi)) * 255
+        g = max(0, math.sin(raw_pred_value * math.pi)) * 255
+        b = max(0, math.cos(raw_pred_value * math.pi)) * 255
         
         base_color = (r, g, b, alpha)
-        accent_color = (min(255, r + 125), 125, min(255, b + 125), alpha)
-        shadow_color = (max(0, r - 125), 0, max(0, b - 125), alpha)
+        accent_color = (min(255, r + 125), min(255, g + 125), min(255, b + 125), alpha)
+        shadow_color = (max(0, r - 125), max(0, g - 125), max(0, b - 125), alpha)
     
     # Show raw prediction values as R and B color-channel values
     # as well as note opacity.
     else:
         alpha = get_faded_alpha()
         
-        r = raw_pred_value * 255
-        g = 0
-        b = (1 - raw_pred_value) * 255
+        r = max(0, -math.cos(raw_pred_value * math.pi)) * 255
+        g = max(0, math.sin(raw_pred_value * math.pi)) * 255
+        b = max(0, math.cos(raw_pred_value * math.pi)) * 255
         
         base_color = (r, g, b, alpha)
-        accent_color = (min(255, r + 125), 125, min(255, b + 125), alpha)
-        shadow_color = (max(0, r - 125), 0, max(0, b - 125), alpha)
+        accent_color = (min(255, r + 125), min(255, g + 125), min(255, b + 125), alpha)
+        shadow_color = (max(0, r - 125), max(0, g - 125), max(0, b - 125), alpha)
     
     return base_color, shadow_color, accent_color
      
