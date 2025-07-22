@@ -1,4 +1,5 @@
 import argparse
+import math
 import os
 import pygame
 import time
@@ -16,10 +17,12 @@ HIT_SFX_FILE_PATH = os.path.join(os.getcwd(), "src", "visualizer", "hit_sfx.mp3"
 # The hit SFX is royalty free.
 # Download: https://pixabay.com/sound-effects/electronic-closed-hat-11-stereo-100413/
 
-VISUALIZER_VERSION = "1.4"
+VISUALIZER_VERSION = "1.6"
 FPS = 144
 
 # -------- Colors --------
+USE_DARKMODE = True
+
 NOTE_L0_BASE_COL = (200, 150, 255)
 NOTE_L0_ACCENT_COL = (225, 175, 255)
 NOTE_L0_SHADOW_COL = (75, 25, 130)
@@ -40,8 +43,11 @@ NOTE_BASE_COLS = [ NOTE_L0_BASE_COL, NOTE_L1_BASE_COL, NOTE_L2_BASE_COL, NOTE_L3
 NOTE_ACCENT_COLS = [ NOTE_L0_ACCENT_COL, NOTE_L1_ACCENT_COL, NOTE_L2_ACCENT_COL, NOTE_L3_ACCENT_COL ]
 NOTE_SHADOW_COLS = [ NOTE_L0_SHADOW_COL, NOTE_L1_SHADOW_COL, NOTE_L2_SHADOW_COL, NOTE_L3_SHADOW_COL ]
 
-BG_COL = (225, 225, 255)
-BG_ACCENT_COL = (240, 240, 255)
+LIGHTMODE_BG_COL = (225, 225, 255)
+LIGHTMODE_BG_ACCENT_COL = (240, 240, 255)
+
+DARKMODE_BG_COL = (27, 27, 27)
+DARMODE_BG_ACCENT_COL = (42, 42, 42)
 
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
@@ -63,20 +69,22 @@ KEYPRESS_FADE_DURATION = 0.2
 # -----------------------
 
 # -------- General --------
-SCREEN_WIDTH = 512
-SCREEN_HEIGHT = 1024
+BASE_WIDTH = 512
+BASE_HEIGHT = 1280
+
+REF_WIDTH = 2560
+REF_HEIGHT = 1440
 
 USE_AUTOPLAY = True
 
 NOTE_DISPLAY_MODE = 3
 NOTE_SPRITE_TYPE = 1
 
-JUDGEMENT_Y_POSITION = 850
+JUDGEMENT_DISTANCE_TO_BOTTOM = BASE_HEIGHT // 8
+JUDGEMENT_Y_POSITION = BASE_HEIGHT - JUDGEMENT_DISTANCE_TO_BOTTOM
 
 SCROLL_SPEED = 1.2
 # -------------------------
-
-
 
 
 class Note():
@@ -229,26 +237,26 @@ def get_note_colors(lane, is_placed_note, raw_pred_value, y_pos):
     elif NOTE_DISPLAY_MODE == 2:
         alpha = int((raw_pred_value + 0.75) * 146)
         
-        r = raw_pred_value * 255
-        g = 0
-        b = (1 - raw_pred_value) * 255
+        r = max(0, -math.cos(raw_pred_value * math.pi)) * 255
+        g = max(0, math.sin(raw_pred_value * math.pi)) * 255
+        b = max(0, math.cos(raw_pred_value * math.pi)) * 255
         
         base_color = (r, g, b, alpha)
-        accent_color = (min(255, r + 125), 125, min(255, b + 125), alpha)
-        shadow_color = (max(0, r - 125), 0, max(0, b - 125), alpha)
+        accent_color = (min(255, r + 125), min(255, g + 125), min(255, b + 125), alpha)
+        shadow_color = (max(0, r - 125), max(0, g - 125), max(0, b - 125), alpha)
     
     # Show raw prediction values as R and B color-channel values
     # as well as note opacity.
     else:
         alpha = get_faded_alpha()
         
-        r = raw_pred_value * 255
-        g = 0
-        b = (1 - raw_pred_value) * 255
+        r = max(0, -math.cos(raw_pred_value * math.pi)) * 255
+        g = max(0, math.sin(raw_pred_value * math.pi)) * 255
+        b = max(0, math.cos(raw_pred_value * math.pi)) * 255
         
         base_color = (r, g, b, alpha)
-        accent_color = (min(255, r + 125), 125, min(255, b + 125), alpha)
-        shadow_color = (max(0, r - 125), 0, max(0, b - 125), alpha)
+        accent_color = (min(255, r + 125), min(255, g + 125), min(255, b + 125), alpha)
+        shadow_color = (max(0, r - 125), max(0, g - 125), max(0, b - 125), alpha)
     
     return base_color, shadow_color, accent_color
      
@@ -316,7 +324,7 @@ def process_event(event : pygame.event.Event) -> int:
             return 0
         
         # Toggle note sprite type.
-        if event.key == pygame.K_m:
+        if event.key == pygame.K_s:
             global NOTE_SPRITE_TYPE
             NOTE_SPRITE_TYPE = NOTE_SPRITE_TYPE + 1 if NOTE_SPRITE_TYPE < 1 else 0
             return 0
@@ -334,6 +342,13 @@ def process_event(event : pygame.event.Event) -> int:
             SCROLL_SPEED = min(SCROLL_SPEED, 3)
             return 0
         
+        global USE_DARKMODE
+        
+        # Toggle Darkmode.
+        if event.key == pygame.K_r:
+            USE_DARKMODE = not USE_DARKMODE
+            return 0
+
         return 0
     
     # Reset keys-held values for highlight fade-out.
@@ -349,7 +364,7 @@ def draw_keypress_highlights(surface : pygame.Surface, lane_idx : int, fade_fact
     rect_x = lane_idx * 128
     rect_y = JUDGEMENT_Y_POSITION
     width = 128
-    height = SCREEN_HEIGHT - rect_y
+    height = REF_HEIGHT - rect_y
     
     highlight_surface = pygame.Surface((width, height), flags=pygame.SRCALPHA).convert_alpha()
     
@@ -369,12 +384,14 @@ def draw_judgement_line(surface : pygame.Surface) -> None:
         start_pos=(0, JUDGEMENT_Y_POSITION),
         end_pos=(540, JUDGEMENT_Y_POSITION)
     )
-        
+    
+    below_judgement_col =  DARMODE_BG_ACCENT_COL if USE_DARKMODE else LIGHTMODE_BG_ACCENT_COL
+    
     # Area below judgement line.
     pygame.draw.rect(
         surface=surface,
-        color=BG_ACCENT_COL,
-        rect=((0, JUDGEMENT_Y_POSITION, SCREEN_WIDTH, SCREEN_HEIGHT))
+        color=below_judgement_col,
+        rect=((0, JUDGEMENT_Y_POSITION, REF_WIDTH, REF_HEIGHT))
     )
 
 
@@ -385,14 +402,26 @@ def main():
     pygame.mixer.init()
     pygame.mixer.music.load(AUDIO_FILE_PATH)
     pygame.mixer.music.set_volume(0.2)
-    pygame.mixer_music.set_endevent(QUIT)
+    pygame.mixer_music.set_endevent(pygame.QUIT)
     
     sfx_hit = pygame.mixer.Sound(HIT_SFX_FILE_PATH)
     sfx_hit.set_volume(0.3)
 
     frame_clock = pygame.time.Clock()
     
-    DISPLAY_SURFACE = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+    current_screen_width = pygame.display.Info().current_w
+    current_screen_height = pygame.display.Info().current_h
+    
+    scale_w = current_screen_width / REF_WIDTH
+    scale_h = current_screen_height / REF_HEIGHT
+    
+    scale_factor = min(scale_w, scale_h)
+    
+    window_width = int(scale_factor * BASE_WIDTH)
+    window_height = int(scale_factor * BASE_HEIGHT)
+    
+    virtual_surface = pygame.Surface((BASE_WIDTH, BASE_HEIGHT), pygame.SRCALPHA)
+    DISPLAY_SURFACE = pygame.display.set_mode((window_width, window_height))
     
     pygame.display.set_caption(f"Beatmap Visualizer v{VISUALIZER_VERSION}")
     # ---------------------------------
@@ -423,7 +452,9 @@ def main():
             if event_feedback == 1:
                 sfx_hit.play()
         
-        DISPLAY_SURFACE.fill(color=BG_COL)
+        bg_col = DARKMODE_BG_COL if USE_DARKMODE else LIGHTMODE_BG_COL
+        
+        virtual_surface.fill(color=bg_col)
         
         current_time_s = time.time() - start_time_s
         current_time_ms = current_time_s * 1000
@@ -474,10 +505,10 @@ def main():
         # -------- Rendering --------
         # Draw active notes.
         for note in active_notes:
-            note.draw(DISPLAY_SURFACE)
+            note.draw(virtual_surface)
         
         # Draw judgement lines.
-        draw_judgement_line(DISPLAY_SURFACE)
+        draw_judgement_line(virtual_surface)
         
         # Draw keypress highlights.
         for lane_idx in range(4):
@@ -485,9 +516,15 @@ def main():
             
             if time_since < KEYPRESS_FADE_DURATION:
                 fade_factor = 1.0 - (time_since / KEYPRESS_FADE_DURATION)
-                draw_keypress_highlights(surface=DISPLAY_SURFACE, lane_idx=lane_idx, fade_factor=fade_factor)
+                draw_keypress_highlights(surface=virtual_surface, lane_idx=lane_idx, fade_factor=fade_factor)
         
-        pygame.display.update()
+        scaled_frame = pygame.transform.smoothscale(
+            virtual_surface,
+            (window_width, window_height)
+        )
+        
+        DISPLAY_SURFACE.blit(scaled_frame, (0, 0))
+        pygame.display.flip()
         # ---------------------------
 
 
