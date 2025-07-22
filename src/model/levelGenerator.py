@@ -55,7 +55,7 @@ def calculate_subbeat_timings(audio_path, audio_start_ms, audio_bpm, note_precis
     return subbeat_times_ms
 
 
-def extract_features(audio_path, audio_bpm, audio_start_ms, sequence_length, note_precision, means, stds):
+def extract_features(audio_path, audio_bpm, audio_start_ms, note_precision):
     y, sr = librosa.load(audio_path, sr=None)
     hop_length = 512
     mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=5, hop_length=hop_length).T
@@ -88,24 +88,36 @@ def extract_features(audio_path, audio_bpm, audio_start_ms, sequence_length, not
         
         features.append(feature_vector)
     
-    
     features = np.array(features)
     
-    # -------- Normalize features --------
-    if features.ndim == 2 and features.shape[0] > 0:
-        for col in range(features.shape[1]):
-            features[:, col] = (features[:, col] - means[col]) / (stds[col] + 1e-6)
-    else:
-        raise ValueError(f"Feature extraction failed: features shape is {features}")
-    # ---------------------------------
+    return features
+
+
+def normalize_features(features = None, use_global_norm_stats = True, stats = None, sequence_length = 0):
+    normalized_features = np.zeros_like(features)
     
-    n = features.shape[0]
+    # Validity check.
+    if not (features.ndim == 2 and features.shape[0] > 0):
+        raise ValueError(f"Feature extraction failed: features shape is {features.shape}. ndim = {features.ndim}")
+    
+    # Global norm.
+    if use_global_norm_stats:
+        for col in range(features.shape[1]):
+            normalized_features[:, col] = (features[:, col] - stats["means"][col]) / (stats["stds"][col] + 1e-6)
+    # Local norm.
+    else:
+        means = features.mean(axis=0)
+        stds = features.std(axis=0)
+        
+        normalized_features = (features - means) / (stds + 1e-6)
+    
+    n = normalized_features.shape[0]
     n_trim = n - (n % sequence_length)
     
-    features = features[:n_trim]
-    features = features.reshape(-1, sequence_length, features.shape[1])
+    normalized_features = normalized_features[:n_trim]
+    normalized_features = normalized_features.reshape(-1, sequence_length, normalized_features.shape[1])
     
-    return features
+    return normalized_features
 
 
 def compute_combined_prediction_bias(lane_weights, lane_history, num_lanes, history_window, long_weight=0.2, short_weight=0.8):
@@ -127,7 +139,6 @@ def compute_combined_prediction_bias(lane_weights, lane_history, num_lanes, hist
     # Combine biases.
     combined_bias = (long_weight * normalized_long_weights) + (short_weight * normalized_short_weights)
     return combined_bias
-    
 
 
 def post_process_predictions(raw_predictions, num_lanes, history_window = 8):
@@ -204,8 +215,10 @@ def convert_predictions_to_gblf_format(raw_predictions, post_processed_predictio
         pred_line = f"{int(subbeat_timings[i])}|"
         
         for j in range(len(raw_prediction) - 1):
+            raw_prediction[j] = min(raw_prediction[j], 1)
             pred_line += f"{post_processed_prediction[j]}:{raw_prediction[j]:.3f}|"
         
+        raw_prediction[-1] = min(raw_prediction[-1], 1)
         pred_line += f"{post_processed_prediction[-1]}:{raw_prediction[-1]:.3f}"
     
         gblf_contents += pred_line + "\n"
@@ -219,30 +232,46 @@ def main():
     with open(NORM_STATS_PATH, "r") as f:
         stats = json.load(f)
     
-    means = stats["means"]
-    stds = stats["stds"]
-    
-    features = extract_features(
+    # Seperate normalized features for more diverse predictions.
+    raw_features = extract_features(
         audio_path=AUDIO_PATH,
         audio_bpm=AUDIO_BPM,
         audio_start_ms=AUDIO_START_MS,
-        sequence_length=SEQUENCE_LENGTH,
-        note_precision=NOTE_PRECISION,
-        means=means,
-        stds=stds
+        note_precision=NOTE_PRECISION
+    )
+    
+    local_norm_features = normalize_features(
+        features=raw_features,
+        use_global_norm_stats=False,
+        stats=stats,
+        sequence_length=SEQUENCE_LENGTH
+    )
+    
+    global_norm_features = normalize_features(
+        features=raw_features,
+        use_global_norm_stats=True,
+        stats=stats,
+        sequence_length=SEQUENCE_LENGTH
     )
     
     model = tf.keras.models.load_model(MODEL_PATH, compile=False)
-    preds = model.predict(features)
-    preds = preds.reshape(-1, preds.shape[-1])
-    preds_bin = post_process_predictions(preds, num_lanes=NUM_LANES)
+    
+    local_norm_preds = model.predict(local_norm_features)
+    global_norm_preds = model.predict(global_norm_features)
+    
+    local_norm_weight = 0.05
+    global_norm_weight = 0.95
+    
+    combined_preds = (local_norm_weight * local_norm_preds) + (global_norm_weight * global_norm_preds)
+    combined_preds = combined_preds.reshape(-1, combined_preds.shape[-1])
+    preds_bin = post_process_predictions(combined_preds, num_lanes=NUM_LANES)
     
     note_density = np.mean(preds_bin)
     
     print("Predictions stats:")
-    print("Min:", np.min(preds))
-    print("Max:", np.max(preds))
-    print("Mean:", np.mean(preds))
+    print("Min:", np.min(combined_preds))
+    print("Max:", np.max(combined_preds))
+    print("Mean:", np.mean(combined_preds))
     print(f"Note density: {note_density}")
     
     subbeat_timings = calculate_subbeat_timings(
@@ -253,7 +282,7 @@ def main():
     )
     
     gblf_contents = convert_predictions_to_gblf_format(
-        raw_predictions=preds,
+        raw_predictions=combined_preds,
         post_processed_predictions=preds_bin,
         subbeat_timings=subbeat_timings
     )
