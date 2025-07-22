@@ -16,7 +16,7 @@ HIT_SFX_FILE_PATH = os.path.join(os.getcwd(), "src", "visualizer", "hit_sfx.mp3"
 # The hit SFX is royalty free.
 # Download: https://pixabay.com/sound-effects/electronic-closed-hat-11-stereo-100413/
 
-VISUALIZER_VERSION = "1.4"
+VISUALIZER_VERSION = "1.5"
 FPS = 144
 
 # -------- Colors --------
@@ -63,15 +63,19 @@ KEYPRESS_FADE_DURATION = 0.2
 # -----------------------
 
 # -------- General --------
-SCREEN_WIDTH = 512
-SCREEN_HEIGHT = 1024
+BASE_WIDTH = 512
+BASE_HEIGHT = 1280
+
+REF_WIDTH = 2560
+REF_HEIGHT = 1440
 
 USE_AUTOPLAY = True
 
 NOTE_DISPLAY_MODE = 3
 NOTE_SPRITE_TYPE = 1
 
-JUDGEMENT_Y_POSITION = 850
+JUDGEMENT_DISTANCE_TO_BOTTOM = BASE_HEIGHT // 8
+JUDGEMENT_Y_POSITION = BASE_HEIGHT - JUDGEMENT_DISTANCE_TO_BOTTOM
 
 SCROLL_SPEED = 1.2
 # -------------------------
@@ -349,7 +353,7 @@ def draw_keypress_highlights(surface : pygame.Surface, lane_idx : int, fade_fact
     rect_x = lane_idx * 128
     rect_y = JUDGEMENT_Y_POSITION
     width = 128
-    height = SCREEN_HEIGHT - rect_y
+    height = REF_HEIGHT - rect_y
     
     highlight_surface = pygame.Surface((width, height), flags=pygame.SRCALPHA).convert_alpha()
     
@@ -374,7 +378,7 @@ def draw_judgement_line(surface : pygame.Surface) -> None:
     pygame.draw.rect(
         surface=surface,
         color=BG_ACCENT_COL,
-        rect=((0, JUDGEMENT_Y_POSITION, SCREEN_WIDTH, SCREEN_HEIGHT))
+        rect=((0, JUDGEMENT_Y_POSITION, REF_WIDTH, REF_HEIGHT))
     )
 
 
@@ -385,14 +389,26 @@ def main():
     pygame.mixer.init()
     pygame.mixer.music.load(AUDIO_FILE_PATH)
     pygame.mixer.music.set_volume(0.2)
-    pygame.mixer_music.set_endevent(QUIT)
+    pygame.mixer_music.set_endevent(pygame.QUIT)
     
     sfx_hit = pygame.mixer.Sound(HIT_SFX_FILE_PATH)
     sfx_hit.set_volume(0.3)
 
     frame_clock = pygame.time.Clock()
     
-    DISPLAY_SURFACE = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+    current_screen_width = pygame.display.Info().current_w
+    current_screen_height = pygame.display.Info().current_h
+    
+    scale_w = current_screen_width / REF_WIDTH
+    scale_h = current_screen_height / REF_HEIGHT
+    
+    scale_factor = min(scale_w, scale_h)
+    
+    window_width = int(scale_factor * BASE_WIDTH)
+    window_height = int(scale_factor * BASE_HEIGHT)
+    
+    virtual_surface = pygame.Surface((BASE_WIDTH, BASE_HEIGHT), pygame.SRCALPHA)
+    DISPLAY_SURFACE = pygame.display.set_mode((window_width, window_height))
     
     pygame.display.set_caption(f"Beatmap Visualizer v{VISUALIZER_VERSION}")
     # ---------------------------------
@@ -423,7 +439,7 @@ def main():
             if event_feedback == 1:
                 sfx_hit.play()
         
-        DISPLAY_SURFACE.fill(color=BG_COL)
+        virtual_surface.fill(color=BG_COL)
         
         current_time_s = time.time() - start_time_s
         current_time_ms = current_time_s * 1000
@@ -474,10 +490,10 @@ def main():
         # -------- Rendering --------
         # Draw active notes.
         for note in active_notes:
-            note.draw(DISPLAY_SURFACE)
+            note.draw(virtual_surface)
         
         # Draw judgement lines.
-        draw_judgement_line(DISPLAY_SURFACE)
+        draw_judgement_line(virtual_surface)
         
         # Draw keypress highlights.
         for lane_idx in range(4):
@@ -485,9 +501,15 @@ def main():
             
             if time_since < KEYPRESS_FADE_DURATION:
                 fade_factor = 1.0 - (time_since / KEYPRESS_FADE_DURATION)
-                draw_keypress_highlights(surface=DISPLAY_SURFACE, lane_idx=lane_idx, fade_factor=fade_factor)
+                draw_keypress_highlights(surface=virtual_surface, lane_idx=lane_idx, fade_factor=fade_factor)
         
-        pygame.display.update()
+        scaled_frame = pygame.transform.smoothscale(
+            virtual_surface,
+            (window_width, window_height)
+        )
+        
+        DISPLAY_SURFACE.blit(scaled_frame, (0, 0))
+        pygame.display.flip()
         # ---------------------------
 
 
