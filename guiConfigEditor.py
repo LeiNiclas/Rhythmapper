@@ -10,9 +10,9 @@ import src.export.beatmapExporter as be
 from tkinter import filedialog, messagebox, ttk
 
 # -------- Config paths --------
-CONFIG_MODEL_PATH = "config_model.json"
-CONFIG_PATHS_PATH = "config_paths.json"
-CONFIG_GENERATION_PATH = "config_generation.json"
+CONFIG_MODEL_PATH = "configs\\config_model.json"
+CONFIG_PATHS_PATH = "configs\\config_paths.json"
+CONFIG_GENERATION_PATH = "configs\\config_generation.json"
 # ------------------------------
 
 # -------- UI Colors --------

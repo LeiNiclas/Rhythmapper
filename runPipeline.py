@@ -19,13 +19,13 @@ def main():
     config_paths = None
     config_generation = None
     
-    with open("config_model.json") as f:
+    with open("configs\\config_model.json") as f:
         config_model = json.load(f)
         
-    with open("config_paths.json") as f:
+    with open("configs\\config_paths.json") as f:
         config_paths = json.load(f)
     
-    with open("config_generation.json") as f:
+    with open("configs\\config_generation.json") as f:
         config_generation = json.load(f)
     
     
@@ -116,6 +116,7 @@ def main():
             "--beatmap_path", beatmap_path,
             "--audio_path", audio_path
         ], "Run Visualizer")
+
 
 if __name__ == "__main__":
     main()
