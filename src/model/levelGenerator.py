@@ -208,8 +208,8 @@ def post_process_predictions(raw_predictions, num_lanes, history_window = 8):
     return binary_preds
 
 
-def convert_predictions_to_gblf_format(raw_predictions, post_processed_predictions, subbeat_timings):
-    gblf_contents = ""
+def convert_predictions_to_rthm_format(raw_predictions, post_processed_predictions, subbeat_timings):
+    rthm_contents = ""
     
     for i, (raw_prediction, post_processed_prediction) in enumerate(zip(raw_predictions, post_processed_predictions)):
         pred_line = f"{int(subbeat_timings[i])}|"
@@ -221,9 +221,9 @@ def convert_predictions_to_gblf_format(raw_predictions, post_processed_predictio
         raw_prediction[-1] = min(raw_prediction[-1], 1)
         pred_line += f"{post_processed_prediction[-1]}:{raw_prediction[-1]:.3f}"
     
-        gblf_contents += pred_line + "\n"
+        rthm_contents += pred_line + "\n"
     
-    return gblf_contents
+    return rthm_contents
 
 
 def main():
@@ -281,7 +281,7 @@ def main():
         note_precision=NOTE_PRECISION
     )
     
-    gblf_contents = convert_predictions_to_gblf_format(
+    rthm_contents = convert_predictions_to_rthm_format(
         raw_predictions=combined_preds,
         post_processed_predictions=preds_bin,
         subbeat_timings=subbeat_timings
@@ -289,8 +289,8 @@ def main():
 
     output_path = os.path.join(args.output_dir, args.file_name)
     
-    with open(f"{output_path}.gblf", "w", encoding="utf-8") as f:
-        f.write(gblf_contents)
+    with open(f"{output_path}.rthm", "w", encoding="utf-8") as f:
+        f.write(rthm_contents)
 
 
 if __name__ == "__main__":

@@ -6,7 +6,7 @@ import time
 from pygame.locals import *
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--beatmap_path", type=str, default=os.path.join(os.getcwd(), "generation", "test.gblf"))
+parser.add_argument("--beatmap_path", type=str, default=os.path.join(os.getcwd(), "generation", "test.rthm"))
 parser.add_argument("--audio_path", type=str, default=os.path.join(os.getcwd(), "generation", "audio", "test_audio.mp3"))
 args = parser.parse_args()
 

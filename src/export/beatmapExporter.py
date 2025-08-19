@@ -8,10 +8,10 @@ def export_to_osz(audio_file_path : str, beatmap_file_path : str, export_path : 
         raise ValueError(f"Error: Could not export beatmap to .osz. Audio file {audio_file_path} has invalid extension.")
     
     # Check validty of beatmap file extension.
-    if beatmap_file_path.split('.')[-1] != "gblf":
+    if beatmap_file_path.split('.')[-1] != "rthm":
         raise ValueError(f"Error: Could not export beatmap .osz. Beatmap file {beatmap_file_path} has invalid extension.")
     
-    beatmap_name = os.path.basename(beatmap_file_path).replace(".gblf", "")
+    beatmap_name = os.path.basename(beatmap_file_path).replace(".rthm", "")
     audio_file_name = os.path.basename(audio_file_path)
     
     temp_dir = os.path.join(export_path, f"{beatmap_name}_temp")
@@ -41,7 +41,7 @@ def export_to_qua(audio_file_path : str, beatmap_file_path : str, export_path : 
         raise ValueError(f"Error: Could not export beatmap. Audio file {audio_file_path} has invalid extension.")
 
     # Check validity of beatmap file extension.
-    if beatmap_file_path.split('.')[-1] != "gblf":
+    if beatmap_file_path.split('.')[-1] != "rthm":
         raise ValueError(f"Error: Could not export beatmap. Beatmap file {beatmap_file_path} has invalid extension.")
 
     title = metadata["title"]
@@ -67,10 +67,10 @@ def export_to_qua(audio_file_path : str, beatmap_file_path : str, export_path : 
 
 
 def create_osu_file_template(audio_file_name : str, beatmap_file_path : str, destination_file_path : str, metadata : dict) -> str:
-    gblf_data = None
+    rthm_data = None
     
     with open(beatmap_file_path, "r") as f:
-        gblf_data = f.readlines()
+        rthm_data = f.readlines()
     
     title = metadata["title"]
     artist = metadata["artist"]
@@ -139,7 +139,7 @@ def create_osu_file_template(audio_file_name : str, beatmap_file_path : str, des
     
     fixed_object_string = "1,0,0:0:0:0:"
     
-    for line in gblf_data:
+    for line in rthm_data:
         line_contents = line.strip().split("|")
         
         timing = int(line_contents[0])
@@ -163,10 +163,10 @@ def create_osu_file_template(audio_file_name : str, beatmap_file_path : str, des
 
 
 def create_qua_file_template(audio_file_name : str, beatmap_file_path : str, destination_file_path : str, metadata : dict) -> str:
-    gblf_data = None
+    rthm_data = None
     
     with open(beatmap_file_path, "r") as f:
-        gblf_data = f.readlines()
+        rthm_data = f.readlines()
     
     # -------- Necessary contents --------
     title = metadata["title"]
@@ -198,7 +198,7 @@ def create_qua_file_template(audio_file_name : str, beatmap_file_path : str, des
     # ------------------------------------
     
     # -------- HitObject conversion --------
-    for line in gblf_data:
+    for line in rthm_data:
         line_contents = line.strip().split("|")
         
         timing = int(line_contents[0])
