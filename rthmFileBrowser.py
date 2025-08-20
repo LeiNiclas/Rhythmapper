@@ -4,6 +4,7 @@ import sys
 import tkinter as tk
 
 import src.analyzer.rthmAnalyzer as ra
+import src.analyzer.rthmPlotter as rp
 
 from tkinter import filedialog, messagebox, ttk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -83,7 +84,7 @@ class RthmFileBrowser:
         self.analytics_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
         
         # -------- Browser --------
-        ttk.Label(self.browser_frame, text="File", font=(FONT, H1_FONT_SIZE, "bold")).pack(anchor="w", pady=(0, 6))
+        ttk.Label(self.browser_frame, text=".rthm Files", font=(FONT, H1_FONT_SIZE, "bold")).pack(anchor="w", pady=(0, 6))
         
         list_container_frame = ttk.Frame(self.browser_frame)
         list_container_frame.pack(fill=tk.BOTH, expand=True)
@@ -146,11 +147,11 @@ class RthmFileBrowser:
         # Plot frame
         self.plot_frame = ttk.Frame(self.analytics_frame)
         self.plot_frame.pack(fill=tk.X, pady=(8, 0))
-        self.plot_frame.configure(height=int(self.root.winfo_screenheight() * 0.33))
+        self.plot_frame.configure(height=int(self.root.winfo_screenheight() * 0.5))
         self.plot_frame.pack_propagate(False)
         
         # Matplotlib figures
-        self.fig, self.ax = plt.subplots(figsize=(8, 4))
+        self.fig, self.ax = plt.subplots(figsize=(8, 8))
         self.mpl_style_axes(self.ax)
         self.figure_canvas = FigureCanvasTkAgg(self.fig, master=self.plot_frame)
         
@@ -344,22 +345,55 @@ class RthmFileBrowser:
     
     def update_plots(self):
         self.fig.clear()
-        gridspec = self.fig.add_gridspec(nrows=2, ncols=1, height_ratios=[1, 1], hspace=0.33)
+        gridspec = self.fig.add_gridspec(
+            nrows=2, ncols=1, 
+            height_ratios=[2, 1],
+            hspace=0.1
+        )
         
         ax_note_distribution = self.fig.add_subplot(gridspec[0, 0])
+        ax_note_distribution.tick_params(
+            axis="x",
+            which="both",
+            bottom=False,
+            labelbottom=False
+        )
         ax_note_lane_heatmap = self.fig.add_subplot(gridspec[1, 0], sharex=ax_note_distribution)
         
         if not self.note_distribution_data:
             self.mpl_style_axes(ax_note_distribution)
             self.mpl_style_axes(ax_note_lane_heatmap)
-            ax_note_distribution.set_title("Note distribution over time", color=FONT_COL, fontweight="bold", fontsize=H2_FONT_SIZE)
-            ax_note_distribution.set_xlabel("Time (seconds)", color=FONT_COL, fontsize=H3_FONT_SIZE)
+            
+            ax_note_distribution.set_title("Note distribution + heatmap", color=FONT_COL, fontweight="bold", fontsize=H2_FONT_SIZE)
+            # ax_note_distribution.set_xlabel("Time (seconds)", color=FONT_COL, fontsize=H3_FONT_SIZE)
             ax_note_distribution.set_ylabel("Note count", color=FONT_COL, fontsize=H3_FONT_SIZE)
             ax_note_distribution.grid(True, axis="y", alpha=0.25, color=ACTIVE_COL)
-            self.figure_canvas.draw()
+            
+            #ax_note_lane_heatmap.set_title("Notes per lane heatmap", color=FONT_COL, fontweight="bold", fontsize=H2_FONT_SIZE)
+            ax_note_lane_heatmap.set_xlabel("Time (seconds)", color=FONT_COL, fontsize=H3_FONT_SIZE)
+            ax_note_lane_heatmap.set_ylabel("Lane", color=FONT_COL, fontsize=H3_FONT_SIZE)
+            
+            self.figure_canvas.draw_idle()
             return
 
-        # TODO: Update plots here.
+        # Plot distribution graph.
+        bin_size = rp.plot_note_distribution_over_time(ax_note_distribution, self.note_distribution_data)
+        self.mpl_style_axes(ax_note_distribution)
+        
+        ax_note_distribution.set_title("Note distribution + heatmap", color=FONT_COL, fontweight="bold", fontsize=H2_FONT_SIZE)
+        # ax_note_distribution.set_xlabel("Time (seconds)", color=FONT_COL, fontsize=H3_FONT_SIZE)
+        ax_note_distribution.set_ylabel("Note count", color=FONT_COL, fontsize=H3_FONT_SIZE)
+        ax_note_distribution.grid(True, axis="y", alpha=0.25, color=ACTIVE_COL)
+        
+        # Plot heatmap.
+        rp.plot_notes_per_lane_heatmap(ax_note_lane_heatmap, self.timing_data, bin_size)
+        self.mpl_style_axes(ax_note_lane_heatmap)
+        
+        # ax_note_lane_heatmap.set_title("Notes per lane heatmap", color=FONT_COL, fontweight="bold", fontsize=H2_FONT_SIZE)
+        ax_note_lane_heatmap.set_xlabel("Time (seconds)", color=FONT_COL, fontsize=H3_FONT_SIZE)
+        ax_note_lane_heatmap.set_ylabel("Lane", color=FONT_COL, fontsize=H3_FONT_SIZE)
+        
+        self.figure_canvas.draw_idle()
         
         
     def mpl_style_axes(self, ax):
