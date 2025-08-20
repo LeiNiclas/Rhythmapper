@@ -41,6 +41,9 @@ NUM_LANES = 4
 MAX_PREDICTION_DELTA = PREDICTION_THRESHOLD / NUM_LANES
 PREDICTION_FREQUENCY_BIAS = 0.002
 
+FILE_FORMAT_VERSION = "1.1"
+
+
 def calculate_subbeat_timings(audio_path, audio_start_ms, audio_bpm, note_precision):
     ms_per_beat = 60_000 / audio_bpm
     ms_per_subbeat = ms_per_beat / note_precision
@@ -209,7 +212,12 @@ def post_process_predictions(raw_predictions, num_lanes, history_window = 8):
 
 
 def convert_predictions_to_rthm_format(raw_predictions, post_processed_predictions, subbeat_timings):
-    rthm_contents = ""
+    rthm_contents = "=- Rhythmapper file format v" + FILE_FORMAT_VERSION + " -=\n"
+    rthm_contents = "// Metadata\n"
+    rthm_contents += f"audiopath:{AUDIO_PATH}\n"
+    rthm_contents += f"bpm:{AUDIO_BPM}\n"
+    rthm_contents += f"used_prediction_threshold:{PREDICTION_THRESHOLD}\n\n"
+    rthm_contents += f"// Notes\n"
     
     for i, (raw_prediction, post_processed_prediction) in enumerate(zip(raw_predictions, post_processed_predictions)):
         pred_line = f"{int(subbeat_timings[i])}|"
