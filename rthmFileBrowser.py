@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import os
+import subprocess
 import sys
 import tkinter as tk
 
@@ -174,14 +175,22 @@ class RthmFileBrowser:
         self.window_size_spin.set("8")
         self.window_size_spin.pack(side=tk.LEFT)
         
-        # Quit button
-        quit_frame = ttk.Frame(self.analytics_frame)
-        quit_frame.pack(side=tk.BOTTOM, anchor="e", pady=(6, 0))
+        # Buttons
+        actions_frame = ttk.Frame(self.analytics_frame)
+        actions_frame.pack(side=tk.BOTTOM, anchor="e", pady=(6, 0))
         
+        # Quit button
         ttk.Button(
-            quit_frame,
+            actions_frame,
             text="Quit",
             command=sys.exit
+        ).pack(side=tk.RIGHT, padx=(0, 4), pady=(4, 4))
+        
+        # Visualizer button
+        ttk.Button(
+            actions_frame,
+            text="Open in Visualizer",
+            command=self.launch_visualizer
         ).pack(side=tk.RIGHT, padx=(0, 4), pady=(4, 4))
         
         self.window_size_spin.bind("<Return>", lambda e: self.on_window_size_changed())
@@ -411,7 +420,19 @@ class RthmFileBrowser:
             label.set_color(FONT_COL)
             label.set_fontsize(H3_FONT_SIZE)
             label.set_fontname(FONT)
-
+    
+    
+    def launch_visualizer(self):
+        if self.current_file:
+            subprocess.run(
+                ["python", ".\\src\\visualizer\\visualizer.py",
+                 "--beatmap_path", os.path.join(self.current_dir, self.current_file),
+                 "--infer_audio_path"]
+            )
+        else:
+            messagebox.showwarning("No file selected", "Please select a .rthm file!")
+            return
+    
 
 def main():
     root = tk.Tk()

@@ -6,12 +6,14 @@ import time
 from pygame.locals import *
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--beatmap_path", type=str, default=os.path.join(os.getcwd(), "generation", "test.rthm"))
-parser.add_argument("--audio_path", type=str, default=os.path.join(os.getcwd(), "generation", "audio", "test_audio.mp3"))
+parser.add_argument("--beatmap_path", type=str, default="")
+parser.add_argument("--audio_path", type=str, default="")
+parser.add_argument("--infer_audio_path", action="store_true")
 args = parser.parse_args()
 
 GENERATED_FILE_PATH = args.beatmap_path
 AUDIO_FILE_PATH = args.audio_path
+INFER_AUDIO_PATH = args.infer_audio_path
 HIT_SFX_FILE_PATH = os.path.join(os.getcwd(), "src", "visualizer", "hit_sfx.mp3")
 
 # The hit SFX is royalty free.
@@ -270,6 +272,10 @@ def get_notes_from_rthm(file_path : str) -> list:
     notes_section_start_idx = 0
     
     for i in range(10):
+        if INFER_AUDIO_PATH and contents[i].startswith("audiopath:"):
+            global AUDIO_FILE_PATH
+            AUDIO_FILE_PATH = contents[i][10:].strip()
+        
         if contents[i].startswith("// Notes"):
             notes_section_start_idx = i + 1
             break
@@ -278,7 +284,7 @@ def get_notes_from_rthm(file_path : str) -> list:
     
     notes = []
     
-    for line in contents:
+    for line in notes_content:
         line_contents = line.strip().split("|")
         
         timing = int(line_contents[0])
@@ -408,6 +414,10 @@ def main():
     # -------- Pygame settings --------
     pygame.init()
     
+    # Loading the notes might change the audio path.
+    # This could use a refactor. 
+    remaining_notes = get_notes_from_rthm(file_path=GENERATED_FILE_PATH)
+    
     pygame.mixer.init()
     pygame.mixer.music.load(AUDIO_FILE_PATH)
     pygame.mixer.music.set_volume(0.2)
@@ -438,7 +448,6 @@ def main():
     # -------- Other settings --------
     quit_game = False
 
-    remaining_notes = get_notes_from_rthm(file_path=GENERATED_FILE_PATH)
     active_notes = []
     
     start_time_s = time.time()
