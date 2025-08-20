@@ -17,7 +17,7 @@ HIT_SFX_FILE_PATH = os.path.join(os.getcwd(), "src", "visualizer", "hit_sfx.mp3"
 # The hit SFX is royalty free.
 # Download: https://pixabay.com/sound-effects/electronic-closed-hat-11-stereo-100413/
 
-VISUALIZER_VERSION = "1.6"
+VISUALIZER_VERSION = "1.7"
 FPS = 144
 
 # -------- Colors --------
@@ -261,11 +261,20 @@ def get_note_colors(lane, is_placed_note, raw_pred_value, y_pos):
     return base_color, shadow_color, accent_color
      
 
-def get_notes_from_gblf(file_path : str) -> list:
+def get_notes_from_rthm(file_path : str) -> list:
     contents = None
     
     with open(file_path, "r") as f:
         contents = f.readlines()
+    
+    notes_section_start_idx = 0
+    
+    for i in range(10):
+        if contents[i].startswith("// Notes"):
+            notes_section_start_idx = i + 1
+            break
+    
+    notes_content = contents[notes_section_start_idx:]
     
     notes = []
     
@@ -429,7 +438,7 @@ def main():
     # -------- Other settings --------
     quit_game = False
 
-    remaining_notes = get_notes_from_gblf(file_path=GENERATED_FILE_PATH)
+    remaining_notes = get_notes_from_rthm(file_path=GENERATED_FILE_PATH)
     active_notes = []
     
     start_time_s = time.time()
