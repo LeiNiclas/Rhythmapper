@@ -3,6 +3,10 @@ import os
 
 
 class TimingData:
+    """
+    Represents a single timing row with per-lan (actual, prediction) values.
+    actual: 0 or 1, prediction: float in [0, 1]
+    """
     def __init__(self, timing : int, note_values : list[tuple[int, float]]):
         self.timing = timing
         self.note_values = note_values
@@ -13,11 +17,11 @@ class TimingData:
     
     
     def get_actual_note_values(self):
-        return [ value for value in self.note_values[..., 0] ]
+        return [ a for a, _ in self.note_values ]
     
     
     def get_prediction_values(self):
-        return [ value for value in self.note_values[..., 1] ]
+        return [ p for _, p in self.note_values ]
     
      
     def get_lane_count(self):
@@ -33,7 +37,27 @@ def get_raw_rthm_data(path : str) -> list[str]:
         return [ line.strip() for line in rthm_file if line.strip() ]
 
 
-def get_note_data(raw_data : list[str], lane_count : int) -> list[TimingData]:
+def get_metadata(raw_data : list[str]) -> list[str]:
+    pass
+
+
+def get_duration_ms(raw_data : list[str]) -> int:
+    try:
+        return int(raw_data[-1].split("|")[0])
+    except ValueError:
+        return 0
+
+def get_lane_count(raw_data : list[str]) -> int:
+    for line in raw_data[::-1]:
+        parts = line.split("|")
+        
+        if len(parts) > 1:
+            return len(parts) - 1
+    
+    raise ValueError("ERROR: Could not infer lane count from .rthm file correctly.")
+
+
+def get_timing_data(raw_data : list[str], lane_count : int) -> list[TimingData]:
     timing_data : list[TimingData] = []
     
     # Let  n := lane_count
