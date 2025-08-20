@@ -284,16 +284,14 @@ class ConfigEditor:
         self.add_header(self.export_frame, 0, "Export paths")
         
         self.export_beatmap_file_path = self.add_file_entry(self.export_frame, "Beatmap to export:", "beatmap_path", is_config_var=False)
-        self.export_audio_file_path = self.add_file_entry(self.export_frame, "Audio file of Beatmap:", "audio_file_path", is_config_var=False)
         self.export_destination_dir = self.add_path_entry(self.export_frame, "Path to save export to:", "export_destionation_path", is_config_var=False)
         # -------------------------------
         
-        self.add_separator(self.export_frame, 4)
+        self.add_separator(self.export_frame, 3)
         
         # -------- Export settings --------
-        self.add_header(self.export_frame, 5, "Metadata")
+        self.add_header(self.export_frame, 4, "Metadata")
         
-        self.export_audio_bpm = self.add_float_entry(self.export_frame, "Audio BPM:", "audio_bpm", is_config_var=False)
         self.export_audio_start_time_ms = self.add_int_entry(self.export_frame, "Audio Start Time (ms):", "audio_start_ms", is_config_var=False)
         self.export_audio_time_signature = self.add_int_entry(self.export_frame, "Audio Time Signature ([4]/4 | [3]/4):", "audio_time_signature", is_config_var=False)
         self.export_audio_title = self.add_str_entry(self.export_frame, "Audio Title:", "title", is_config_var=False)
@@ -441,7 +439,6 @@ class ConfigEditor:
 
     def export(self) -> None:
         bm_fp = self.export_beatmap_file_path.get()
-        a_fp = self.export_audio_file_path.get()
         e_dd = self.export_destination_dir.get()
         
         bpm = self.export_audio_bpm.get()
@@ -466,9 +463,9 @@ class ConfigEditor:
             self.open_output_window()
         
         if fmt == ".osz":
-            be.export_to_osz(audio_file_path=a_fp, beatmap_file_path=bm_fp, export_path=e_dd, metadata=metadata)
+            be.export_to_osz(beatmap_file_path=bm_fp, export_path=e_dd, metadata=metadata)
         elif fmt == ".qua":
-            be.export_to_qua(audio_file_path=a_fp, beatmap_file_path=bm_fp, export_path=e_dd, metadata=metadata)
+            be.export_to_qua(beatmap_file_path=bm_fp, export_path=e_dd, metadata=metadata)
         else:
             messagebox.showerror("Error", f"Beatmap could not be exported.")
             return

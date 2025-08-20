@@ -2,14 +2,51 @@ import os
 import shutil
 
 
-def export_to_osz(audio_file_path : str, beatmap_file_path : str, export_path : str, metadata : dict) -> None:
-    # Check validty of audio file extension.
+def get_audio_file_path(beatmap_file_path : str):
+    if beatmap_file_path.split(".")[-1] != "rthm":
+        raise FileNotFoundError(f"Error: Invalid beatmap file path.")
+    
+    rthm_contents = []
+    
+    with open(beatmap_file_path, "r") as f:
+        rthm_contents = f.readlines(10)
+    
+    for line in rthm_contents:
+        if line.startswith("audiopath:"):
+            path = line[10:].strip()
+            return path
+    
+    raise EOFError(f"Error: Could not find audiopath in the given beatmap file.")
+
+
+def get_audio_bpm(beatmap_file_path : str):
+    if beatmap_file_path.split(".")[-1] != "rthm":
+        raise FileNotFoundError(f"Error: Invalid beatmap file path.")
+    
+    rthm_contents = []
+    
+    with open(beatmap_file_path, "r") as f:
+        rthm_contents = f.readlines(10)
+    
+    for line in rthm_contents:
+        if line.startswith("bpm:"):
+            bpm = line[4:].strip()
+            bpm = float(bpm)
+            return bpm
+    
+    raise EOFError(f"Error: Could not find bpm in the given beatmap file.")
+
+
+def export_to_osz(beatmap_file_path : str, export_path : str, metadata : dict) -> None:
+    audio_file_path = get_audio_file_path(beatmap_file_path=beatmap_file_path)
+    
+    # Check validity of audio file extension.
     if audio_file_path.split('.')[-1] not in [ "mp3", "wav", "ogg" ]:
-        raise ValueError(f"Error: Could not export beatmap to .osz. Audio file {audio_file_path} has invalid extension.")
+        raise ValueError(f"Error: Could not export beatmap. Audio file {audio_file_path} has invalid extension.")
     
     # Check validty of beatmap file extension.
     if beatmap_file_path.split('.')[-1] != "rthm":
-        raise ValueError(f"Error: Could not export beatmap .osz. Beatmap file {beatmap_file_path} has invalid extension.")
+        raise FileNotFoundError(f"Error: Could not export beatmap .osz. Beatmap file {beatmap_file_path} has invalid extension.")
     
     beatmap_name = os.path.basename(beatmap_file_path).replace(".rthm", "")
     audio_file_name = os.path.basename(audio_file_path)
@@ -35,7 +72,9 @@ def export_to_osz(audio_file_path : str, beatmap_file_path : str, export_path : 
     os.rename(f"{archive_base}.zip", os.path.join(export_path, f"{beatmap_name}.osz"))
 
 
-def export_to_qua(audio_file_path : str, beatmap_file_path : str, export_path : str, metadata : dict) -> None:
+def export_to_qua(beatmap_file_path : str, export_path : str, metadata : dict) -> None:
+    audio_file_path = get_audio_file_path(beatmap_file_path=beatmap_file_path)
+    
     # Check validity of audio file extension.
     if audio_file_path.split('.')[-1] not in [ "mp3", "wav", "ogg" ]:
         raise ValueError(f"Error: Could not export beatmap. Audio file {audio_file_path} has invalid extension.")
@@ -76,7 +115,7 @@ def create_osu_file_template(audio_file_name : str, beatmap_file_path : str, des
     artist = metadata["artist"]
     difficulty = metadata["difficulty_name"]
     audio_start_timing = int(metadata["audio_start_ms"])
-    audio_bpm = float(metadata["audio_bpm"])
+    audio_bpm = get_audio_bpm(beatmap_file_path=beatmap_file_path)
     audio_time_signature = int(metadata["audio_time_signature"])
     
     # -------- Necessary contents --------
@@ -139,7 +178,15 @@ def create_osu_file_template(audio_file_name : str, beatmap_file_path : str, des
     
     fixed_object_string = "1,0,0:0:0:0:"
     
-    for line in rthm_data:
+    # Find the beginning of the notes section first.
+    notes_section_start_idx = 0
+    
+    for i in range(rthm_data):
+        if rthm_data[i].startswith("// Notes"):
+            notes_section_start_idx = i+1
+            break
+    
+    for line in rthm_data[notes_section_start_idx:]:
         line_contents = line.strip().split("|")
         
         timing = int(line_contents[0])
@@ -173,7 +220,7 @@ def create_qua_file_template(audio_file_name : str, beatmap_file_path : str, des
     artist = metadata["artist"]
     difficulty = metadata["difficulty_name"]
     audio_start_timing = int(metadata["audio_start_ms"])
-    audio_bpm = float(metadata["audio_bpm"])
+    audio_bpm = get_audio_bpm(beatmap_file_path=beatmap_file_path)
     
     qua_file_contents = f"AudioFile: {audio_file_name}\n"
     qua_file_contents += "SongPreviewTime: 0\n"
@@ -185,7 +232,7 @@ def create_qua_file_template(audio_file_name : str, beatmap_file_path : str, des
     qua_file_contents += "Tags: \n"
     qua_file_contents += "Creator: Quaver-map-gen-AI\n"
     qua_file_contents += f"DifficultyName: {difficulty}\n"
-    qua_file_contents += "Description: AI generated map. (https://github.com/LeiNiclas/osu-mania-level-gen-AI)\n"
+    qua_file_contents += "Description: AI generated map. (https://github.com/LeiNiclas/Rhythmapper)\n"
     qua_file_contents += "EditorLayers: []\n\n"
     
     qua_file_contents += "TimingPoints:\n"
@@ -198,7 +245,15 @@ def create_qua_file_template(audio_file_name : str, beatmap_file_path : str, des
     # ------------------------------------
     
     # -------- HitObject conversion --------
-    for line in rthm_data:
+    # Find the beginning of the notes section first.
+    notes_section_start_idx = 0
+    
+    for i in range(rthm_data):
+        if rthm_data[i].startswith("// Notes"):
+            notes_section_start_idx = i+1
+            break
+    
+    for line in rthm_data[notes_section_start_idx:]:
         line_contents = line.strip().split("|")
         
         timing = int(line_contents[0])
