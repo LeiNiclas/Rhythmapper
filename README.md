@@ -8,15 +8,19 @@ Below is an overview of how the project files are structured. Note that director
 
 ```
 root
-|-- config_generation.json     # Stores all values relevant to level generation and the visualizer.
-|-- config_model.json          # Stores all model and training-specific values.
-|-- config_paths.json          # Stores all relevant directory and file paths.
 |
 |-- feature_norm_stats.json    # Stores generated feature normalization statistics.
 |
 |-- guiConfigEditor.py         # Provides an interactive GUI for editing and executing pipeline steps.
 |
+|-- rthmFileBrowser.py         # Provides an interactive GUI for browsing and visualizing generated .rthm data.  
+|
 |-- runPipeline.py             # Launches the complete pipeline based on the config files.
+|
+|-- configs
+|   |-- config_generation.json
+|   |-- config_model.json
+|   `-- config_paths.json
 |
 |-- data
 |   |-- preprocessed           # Contains preprocessed beatmap data categorized by difficulty.
@@ -28,11 +32,12 @@ root
 |   `-- better_model.keras
 |
 |-- generation                 # [/] Recommended directory to store generated content and related files.
-|   |-- audio_files            # [/] Recommended directory for audio files to use for generation.
-|   |-- levels                 # [/] Recommended directory for generated levels.
+|   |-- audio                  # [/] Recommended directory for audio files to use for generation.
+|   |-- betamaps               # [/] Recommended directory for generated .rthm beatmaps.
 |   `-- exports                # [/] Recommended directory for exported levels.
 |
 `-- src                        # Contains all functional scripts.
+    |-- analyzer               # Contains scripts for analyzing generated .rthm files.
     |-- data_utils             # Contains scripts for normalization and sequence generation and loading.
     |-- download_utils         # Contains scripts for downloading beatmaps.
     |-- model                  # Contains scripts that interact / modify / train the model.
@@ -42,7 +47,7 @@ root
 
 
 ## ❗Prerequisites (Python libraries)
-All necessary Python libraries can be found in the <a href="REQUIREMENTS.txt">REQUIREMENTS.txt</a> file. The core library used (as with many ML projects) is the TensorFlow library. If you are new to using TensorFlow, check out their tutorial on how to install it via pip [here](https://www.tensorflow.org/install/pip). (*Building / installing a TensorFlow version with GPU support is heavily recommended if you intend to train models; **Training via the GPU can drastically decreases model training time!***)
+All necessary Python libraries can be found in the <a href="REQUIREMENTS.txt">REQUIREMENTS.txt</a> file. The core library used (as with many ML projects) is the TensorFlow library. If you are new to using TensorFlow, check out their tutorial on how to install it via pip [here](https://www.tensorflow.org/install/pip). (*Building / installing a TensorFlow version with GPU support is heavily recommended if you intend to train models; **Training via the GPU can drastically decrease model training time!***)
 
 
 
@@ -142,6 +147,8 @@ There are three separate configuration files. The configuration files contain th
 - `run_visualizer`: Should the visualizer script be run?
 - `visualizer_use_last_gen`: If set to true, the visualizer will use the most recently generated beatmap and audio (found at `generation_dir`/`generation_file_name` and `audio_file_path`).
 
+In the future, these settings will all be placed inside a single .json for easier maintenance and better overview.
+
 
 ## 🛠️ GUI Configuration Editor
 To streamline configuration, run:
@@ -167,8 +174,18 @@ The editor is split into 4 tabs:
 
 Each setting has an intuitive interface, and changes can be saved with:
 - **Save and Quit**
-- **Save and Run** (triggers `runPipeline.py`)
-- **Export** (triggers `beatmapExporter.py`)
+- **Save and Run** (runs `runPipeline.py`)
+- **Export** (runs `beatmapExporter.py`)
+
+
+## 📊 Rthm Browser
+If you wish to gain a deeper insight into you generated levels, you can use the **Rthm File Browser**. Launch it by executing the command:
+
+```bash
+python rthmFileBrowser.py
+```
+To see your generated files, choose the folder that contains your generated levels. You will then see all of the `.rthm` files appear in your browser. When selecting them, a range of statistics are displayed, such as the total amount of notes generated as well as the overall note distribution or a note-per-lane heatmap. You can also run the visualizer for any generated beatmap.   
+
 
 ---
 >⚠️ *Note that Commits prior to* 0f91584 *follow a custom format like* "[#XXX-F] commit-msg"*, which might look unconventional*.
