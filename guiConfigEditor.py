@@ -10,9 +10,7 @@ import src.export.beatmapExporter as be
 from tkinter import filedialog, messagebox, ttk
 
 # -------- Config paths --------
-CONFIG_MODEL_PATH = "configs\\config_model.json"
-CONFIG_PATHS_PATH = "configs\\config_paths.json"
-CONFIG_GENERATION_PATH = "configs\\config_generation.json"
+CONFIG_PATH = "json\\config.json"
 # ------------------------------
 
 # -------- UI Colors --------
@@ -47,6 +45,7 @@ def load_json(path):
     if os.path.exists(path=path):
         with open(path, "r") as f:
             return json.load(f)
+    return {}
 
 
 def save_json(path, data):
@@ -127,9 +126,14 @@ class ConfigEditor:
         self.root = root
         self.root.title(f"Beatmap Generation Editor v{GUI_VERSION}")
         
-        self.model_config = load_json(CONFIG_MODEL_PATH)
-        self.paths_config = load_json(CONFIG_PATHS_PATH)
-        self.generation_config = load_json(CONFIG_GENERATION_PATH)
+        self.config = load_json(CONFIG_PATH)
+        
+        self.training_config = self.config.get("Training", {})
+        self.generation_config = self.config.get("Generation", {})
+        self.model_config = self.config.get("Model", {})
+        self.pipeline_config = self.config.get("Pipeline", {})
+        self.paths_config = self.config.get("Paths", {})
+        
         self.output_window = None
         self.console_text_widget = None
         
@@ -181,13 +185,13 @@ class ConfigEditor:
         # -------- Pipeline steps --------
         self.add_header(self.pipeline_frame, 0, "Pipeline steps")
         
-        self.add_checkbox(self.pipeline_frame, "Run Beatmap Downloader", "run_beatmap_downloader", config=self.model_config)
-        self.add_checkbox(self.pipeline_frame, "Run Beatmap Preprocessor", "run_beatmap_preprocessor", config=self.model_config)
-        self.add_checkbox(self.pipeline_frame, "Run Feature Normalizer", "run_feature_normalizer", config=self.model_config)
-        self.add_checkbox(self.pipeline_frame, "Run Sequence Splitter", "run_sequence_splitter", config=self.model_config)
-        self.add_checkbox(self.pipeline_frame, "Run Model Trainer", "run_model_trainer", config=self.model_config)
-        self.add_checkbox(self.pipeline_frame, "Run Beatmap Generator", "run_level_generator", config=self.generation_config)
-        self.add_checkbox(self.pipeline_frame, "Run Visualizer (after generation)", "run_visualizer", config=self.generation_config)
+        self.add_checkbox(self.pipeline_frame, "Run Beatmap Downloader", "run_beatmap_downloader", config=self.pipeline_config)
+        self.add_checkbox(self.pipeline_frame, "Run Beatmap Preprocessor", "run_beatmap_preprocessor", config=self.pipeline_config)
+        self.add_checkbox(self.pipeline_frame, "Run Feature Normalizer", "run_feature_normalizer", config=self.pipeline_config)
+        self.add_checkbox(self.pipeline_frame, "Run Sequence Splitter", "run_sequence_splitter", config=self.pipeline_config)
+        self.add_checkbox(self.pipeline_frame, "Run Model Trainer", "run_model_trainer", config=self.pipeline_config)
+        self.add_checkbox(self.pipeline_frame, "Run Beatmap Generator", "run_level_generator", config=self.pipeline_config)
+        self.add_checkbox(self.pipeline_frame, "Run Visualizer (after generation)", "run_visualizer", config=self.pipeline_config)
         # --------------------------------
         
         self.add_separator(self.pipeline_frame, 8)
@@ -222,7 +226,7 @@ class ConfigEditor:
         # -------- Download settings --------
         self.add_header(self.download_frame, 4, "Download settings")
         
-        self.add_spinbox(self.download_frame, "Number of Beatmapsets to download:", "download_beatmapsets", from_=100, to=2000)
+        self.add_spinbox(self.download_frame, "Number of Beatmapsets to download:", key="download_beatmapsets", config=self.training_config, from_=100, to=2000)
         # -----------------------------------
 
 
@@ -230,12 +234,12 @@ class ConfigEditor:
         # -------- Training settings --------
         self.add_header(self.training_frame, 0, "Training settings")
         
-        self.add_dropdown(self.training_frame, "Difficulty Range:", "difficulty_range", DIFFICULTY_OPTIONS)
-        self.add_checkbox(self.training_frame, "Generate Sequences for all Difficulties", "split_all_difficulty_sequences", config=self.model_config)
-        self.add_spinbox(self.training_frame, "Note Precision:", "note_precision", from_=1, to=8)
-        self.add_spinbox(self.training_frame, "Sequence Length:", "sequence_length", from_=16, to=512)
-        self.add_int_entry(self.training_frame, "Max VRAM for GPU Training (MB):", "max_vram_mb")
-        self.add_spinbox(self.training_frame, "Training epochs:", "training_epochs", from_=1, to=1000)
+        self.add_dropdown(self.training_frame, "Difficulty Range:", "difficulty_range", DIFFICULTY_OPTIONS, config=self.training_config)
+        self.add_checkbox(self.training_frame, "Generate Sequences for all Difficulties", "split_all_difficulty_sequences", config=self.training_config)
+        self.add_spinbox(self.training_frame, "Note Precision:", "note_precision", from_=1, to=8, config=self.training_config)
+        self.add_spinbox(self.training_frame, "Sequence Length:", "sequence_length", from_=16, to=512, config=self.training_config)
+        self.add_int_entry(self.training_frame, "Max VRAM for GPU Training (MB):", "max_vram_mb", config=self.training_config)
+        self.add_spinbox(self.training_frame, "Training epochs:", "training_epochs", from_=1, to=1000, config=self.training_config)
         self.add_path_entry(self.training_frame, "Model output directory:", "model_dir")
         # -----------------------------------
 
@@ -271,9 +275,9 @@ class ConfigEditor:
         self.advanced_generation_frame = ttk.Frame(self.generation_frame, borderwidth=1, relief="groove")
         self.advanced_generation_frame.grid(row=11, column=0, columnspan=3, padx=5, pady=5, sticky="ew")
 
-        self.manual_threshold_entry = self.add_float_entry(self.advanced_generation_frame, "Model Prediction Threshold", "model_prediction_threshold", config=self.generation_config)
-        self.use_auto_threshold = self.add_checkbox(self.advanced_generation_frame, "Use Auto Thresholding", "model_use_auto_threshold", config=self.generation_config, command=self.toggle_threshold_mode)
-        self.percentile_entry = self.add_float_entry(self.advanced_generation_frame, "Auto Threshold Percentile", "model_auto_threshold_percentile", config=self.generation_config)
+        self.manual_threshold_entry = self.add_float_entry(self.advanced_generation_frame, "Model Prediction Threshold", "prediction_threshold", config=self.model_config)
+        self.use_auto_threshold = self.add_checkbox(self.advanced_generation_frame, "Use Auto Thresholding", "use_auto_threshold", config=self.model_config, command=self.toggle_threshold_mode)
+        self.percentile_entry = self.add_float_entry(self.advanced_generation_frame, "Auto Threshold Percentile", "auto_threshold_percentile", config=self.model_config)
 
         self.toggle_advanced_generation_frame()
         self.toggle_threshold_mode()
@@ -356,14 +360,14 @@ class ConfigEditor:
         return cbb 
 
 
-    def add_spinbox(self, frame : ttk.Frame, label : str, key, from_, to, is_config_var : bool = True) -> None:
+    def add_spinbox(self, frame : ttk.Frame, label : str, key, from_, to, config=None, is_config_var : bool = True) -> None:
         row = frame.grid_size()[1]
         ttk.Label(frame, text=label).grid(row=row, column=0, sticky="w", pady=2, padx=5)
-        var = tk.IntVar(value=self.model_config.get(key, from_))
+        var = tk.IntVar(value=config.get(key, from_))
         ttk.Spinbox(frame, from_=from_, to=to, textvariable=var).grid(row=row, column=1, sticky="w", pady=2, padx=5)
         
         if is_config_var:
-            self.model_config[key] = var
+            config[key] = var
 
 
     def add_float_entry(self, frame : ttk.Frame, label : str, key : str, config=None, is_config_var : bool = True) -> ttk.Entry:
@@ -493,10 +497,13 @@ class ConfigEditor:
 
 
     def save_all(self) -> None:
-        save_json(CONFIG_MODEL_PATH, {k: try_get(v) for k, v in self.model_config.items()})
-        save_json(CONFIG_PATHS_PATH, {k: try_get(v) for k, v in self.paths_config.items()})
-        save_json(CONFIG_GENERATION_PATH, {k: try_get(v) for k, v in self.generation_config.items()})
-
+        self.config["Training"] = {k: try_get(v) for k, v in self.training_config.items()}
+        self.config["Generation"] = {k: try_get(v) for k, v in self.generation_config.items()}
+        self.config["Model"] = {k: try_get(v) for k, v in self.model_config.items()}
+        self.config["Pipeline"] = {k: try_get(v) for k, v in self.pipeline_config.items()}
+        self.config["Paths"] = {k: try_get(v) for k, v in self.paths_config.items()}
+        
+        save_json(CONFIG_PATH, self.config)
 
     def save_and_quit(self) -> None:
         self.save_all()

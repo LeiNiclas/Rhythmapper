@@ -1,6 +1,5 @@
 data/raw/
 data/sequences/
-data/audio
 
 generation/
 
@@ -8,4 +7,4 @@ __pycache__
 
 checkpoint_model.keras
 
-config_*
+config.json

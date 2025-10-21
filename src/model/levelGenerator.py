@@ -23,7 +23,7 @@ args = parser.parse_args()
 
 AUDIO_PATH = args.audio_file_path
 MODEL_PATH = args.model_path
-NORM_STATS_PATH = os.path.join(os.getcwd(), "feature_norm_stats.json")
+NORM_STATS_PATH = os.path.join(os.getcwd(), "json", "feature_norm_stats.json")
 
 AUDIO_BPM = args.audio_bpm
 AUDIO_START_MS = args.audio_start_ms

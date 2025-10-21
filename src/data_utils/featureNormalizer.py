@@ -27,8 +27,11 @@ if __name__ == "__main__":
     for col in feature_cols:
         means.append(float(np.mean(all_data[:, col])))
         stds.append(float(np.std(all_data[:, col])))
-    
-    with open("feature_norm_stats.json", "w") as f:
+        
+    if not os.path.exists(os.getcwd(), "json"):
+        os.makedirs(os.getcwd(), "json")
+        
+    with open("json/feature_norm_stats.json", "w") as f:
         json.dump({"means": means, "stds": stds}, f)
     
     print("Saved normalization stats:", means, stds)
