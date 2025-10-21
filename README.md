@@ -4,12 +4,10 @@ The system can transform any audio file into structured and playable 4K beatmap 
 
 
 ## 📁 Directory structure
-Below is an overview of how the project files are structured. Note that directories, which are not existing on the repo (and which you would have to create on your own), are marked with an [ / ] in the comment next to it.  
+Below is an overview of how the project files are structured. Note that directories, which are non-existent on the repo (and which you would have to create on your own), are marked with an [ / ] in the comment next to it.  
 
 ```
 root
-|
-|-- feature_norm_stats.json    # Stores generated feature normalization statistics.
 |
 |-- guiConfigEditor.py         # Provides an interactive GUI for editing and executing pipeline steps.
 |
@@ -17,30 +15,31 @@ root
 |
 |-- runPipeline.py             # Launches the complete pipeline based on the config files.
 |
-|-- configs
-|   |-- config_generation.json
-|   |-- config_model.json
-|   `-- config_paths.json
-|
 |-- data
 |   |-- preprocessed           # Contains preprocessed beatmap data categorized by difficulty.
 |   |-- raw                    # [/] Stores raw downloaded beatmap data.
 |   `-- sequences              # [/] Stores split training and testing sequences.
-|
-|-- models
-|   |-- model.keras
-|   `-- better_model.keras
 |
 |-- generation                 # [/] Recommended directory to store generated content and related files.
 |   |-- audio                  # [/] Recommended directory for audio files to use for generation.
 |   |-- betamaps               # [/] Recommended directory for generated .rthm beatmaps.
 |   `-- exports                # [/] Recommended directory for exported levels.
 |
+|-- json
+|   |-- config.json
+|   `-- feature_norm_stats.json
+|
+|-- models
+|   |-- model.keras
+|   `-- better_model.keras
+|
+|
 `-- src                        # Contains all functional scripts.
     |-- analyzer               # Contains scripts for analyzing generated .rthm files.
     |-- data_utils             # Contains scripts for normalization and sequence generation and loading.
     |-- download_utils         # Contains scripts for downloading beatmaps.
-    |-- model                  # Contains scripts that interact / modify / train the model.
+    |-- export                 # Contains scripts for exporting generated beatmaps.
+    |-- model                  # Contains scripts that interact with / modify / train the model.
     |-- preprocessing          # Contains scripts for preprocessing beatmap data.
     `-- visualizer             # Contains scripts (and additional files) for the visualizer.
 ```
@@ -111,25 +110,37 @@ Each pipeline step can be toggled via a checkbox in the GUI or corresponding boo
    - Controlled by `run_visualizer` and `visualizer_use_last_gen`.
 
 
-## ⚙️ Configuration Files
-There are three separate configuration files. The configuration files contain the following configuration settings: 
+## ⚙️ Configuration File
+The configuration file contains several settings that are important to the generation pipeline. It is ordered into several categories and contains the following configuration settings: 
 
-### `config_model.json`: Model & Data Settings
+### `Training`: (Pre-) Training settings
 - `download_beatmapsets`: The amount of beatmapsets to download. (*Note: beatmapsets $\neq$ beatmaps $\rarr$ each beatmapset may contain more than one beatmap.*)
 - `note_precision`: How detailed are the beatmaps being processed / generated? This value should only be a power of 2. It works the following: On the lowest precision (= 1), every quarter note is being extracted from a beatmap-file and generated levels can only have notes placed on quarter notes. For the second level of precision (= 2), every eighth note is included, and so on.
-- `prediction_threshold`: For which prediction values $v \in [0,1]$ should the model output generate a note?
 - `sequence_length`: How long are the sequences that are saved during data preprocessing? (*How many subbeats are passed to the model as one continuous sequence?*)
 - `split_all_difficulty_sequences`: If *false*, only create sequences for the desired difficulty range.
 - `difficulty_range`: What beatmap difficulty-range should the model train on (or the sequences be split for)?
 - `max_vram_mb`: If using the GPU during training, change this value to limit the amount of VRAM that is being used during model training.
 - `training_epochs`: The maximum amount of (additional) epochs that a model will train for if it keeps improving (without overfitting).
+
+### `Generation`: Beatmap generation settings
+- `audio_bpm`: The BPM of the audio file that is being used to generate a new beatmap.
+- `audio_start_ms`: The time in milliseconds where the first beat occurs in the audio.
+
+### `Model`: Model prediction settings
+- `prediction_threshold`: For which prediction values $v \in [0,1]$ should the model output generate a note?
+- `use_auto_threshold`: Should the model figure out the optimal threshold on its own? (Depends on the `auto_threshold_percentile`)
+- `auto_threshold_percentile`: If `use_auto_threshold`, turn outputs with a prediction value that lie in this percentile into a note.  
+
+### `Pipeline`: Pipeline steps settings
 - `run_beatmap_downloader`: Should the beatmap downloader script be run?
 - `run_beatmap_preprocessor`: Should the beatmap preprocessor script be run?
-- `run_sequence_splitter`: Should the sequence splitter script be run?
 - `run_feature_normalizer`: Should the feature normalizer script be run?
+- `run_sequence_splitter`: Should the sequence splitter script be run?
 - `run_model_trainer`: Should the model trainer script be run?
+- `run_level_generator`: Should the level generator script be run?
+- `run_visualizer`: Should the visualizer script be run?
 
-### `config_paths.json`: Path settings
+### `Paths`: Path settings
 - `raw_data_path`: Beatmaps will be downloaded to this path.
 - `preprocessed_data_path`: Preprocessed beatmaps will be saved to this path.
 - `model_dir`: Models will be saved here.
@@ -137,17 +148,6 @@ There are three separate configuration files. The configuration files contain th
 - `generation_dir`: Generated beatmaps will be saved to this path.
 - `generation_file_name`: The generated beatmap will have this name.
 - `audio_file_path`: The beatmap generation will use this audio.
-- `visualizer_beatmap_path`: If you are not visualizing the most recently generated beatmap, the visualizer will use the beatmap at this path. (*For more info: Look into the* `config_generation.json` *settings.*)
-- `visualizer_audio_path`: Like `visualizer_beatmap_path`, the audio file at this path will be used if you are not visualizing the most recently generated beatmap.
-
-### `config_generation.json`: Beatmap-generation settings
-- `audio_bpm`: The BPM of the audio file that is being used to generate a new beatmap.
-- `audio_start_ms`: The time in milliseconds where the first beat occurs in the audio.
-- `run_level_generator`: Should the level generator script be run?
-- `run_visualizer`: Should the visualizer script be run?
-- `visualizer_use_last_gen`: If set to true, the visualizer will use the most recently generated beatmap and audio (found at `generation_dir`/`generation_file_name` and `audio_file_path`).
-
-In the future, these settings will all be placed inside a single .json for easier maintenance and better overview.
 
 
 ## 🛠️ GUI Configuration Editor
@@ -178,13 +178,13 @@ Each setting has an intuitive interface, and changes can be saved with:
 - **Export** (runs `beatmapExporter.py`)
 
 
-## 📊 Rthm Browser
-If you wish to gain a deeper insight into you generated levels, you can use the **Rthm File Browser**. Launch it by executing the command:
+## 📊 Rthm File Browser
+If you wish to gain a deeper insight into your generated levels, you can use the **Rthm File Browser**. Launch it by executing the command:
 
 ```bash
 python rthmFileBrowser.py
 ```
-To see your generated files, choose the folder that contains your generated levels. You will then see all of the `.rthm` files appear in your browser. When selecting them, a range of statistics are displayed, such as the total amount of notes generated as well as the overall note distribution or a note-per-lane heatmap. You can also run the visualizer for any generated beatmap.   
+To see your generated files, choose the folder that contains your generated levels. You will then see all of the `.rthm` files appear in your browser. When selecting them, a range of statistics are displayed, such as the total amount of notes generated as well as the overall note distribution or a note-per-lane heatmap. You can also run the visualizer for any selected `.rthm` beatmap.   
 
 
 ---
