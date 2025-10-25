@@ -16,9 +16,6 @@ parser.add_argument("--input_dir", type=str)
 args = parser.parse_args()
 
 
-NORM_STATS_PATH = os.path.join(os.getcwd(), "feature_norm_stats.json")
-
-
 def load_all_preprocessed_csvs(preprocessed_root : str) -> np.ndarray:
     """
     Load data from the preprocessed CSV-files.
@@ -103,14 +100,6 @@ def create_and_save_sequences_by_difficulty(preprocessed_root : str, sequence_le
         max_gb (float, optional): _The maximum size in GB for each file._ Defaults to 1.0.
         test_ratio (float, optional): _Fraction of data to use for testing._ Defaults to 0.2.
     """
-    stats = None
-    
-    with open(NORM_STATS_PATH, "r") as f:
-        stats = json.load(f)
-    
-    means = stats["means"]
-    stds = stats["stds"]
-    
     for difficulty_label in os.listdir(preprocessed_root):
         # Skip all difficulties except desired one.
         if args.difficulty_range != "all" and args.difficulty_range != difficulty_label:
@@ -142,14 +131,7 @@ def create_and_save_sequences_by_difficulty(preprocessed_root : str, sequence_le
         
         # Create sequences for this difficulty
         sequences = create_sequences(all_data, sequence_length=sequence_length)
-        
-        # -------- Feature normalization --------
-        feature_cols = [ i for i in range(7) ]
-        
-        for col in feature_cols:
-            sequences[:, :, col] = (sequences[:, :, col] - means[col]) / (stds[col] + 1e-6)
-        # -----------------------------------------------
-        
+
         print(f"Total sequences for {difficulty_label}: {len(sequences)}")
 
         # Split into train and test

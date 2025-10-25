@@ -146,7 +146,7 @@ def get_audio_features(audio_file_path : str, beat_timings : list[list]) -> list
 
     Returns:
         list[list]: _Audio features with entries in the format
-        [mfcc0, ..., mfcc4, onset]_
+        [mfcc0, ..., mfcc4, onset, rms]_
     """
     # Load the audio file.
     y, sr = librosa.load(audio_file_path, sr=None)
@@ -180,7 +180,16 @@ def get_audio_features(audio_file_path : str, beat_timings : list[list]) -> list
         
         features.append(feature_vector)
     
-    return features
+    if len(features) == 0:
+        return []
+
+    features = np.array(features, dtype=float)
+    
+    means = features.mean(axis=0)
+    stds = features.std(axis=0)
+    features = (features - means) / (stds + 1e-6)
+    
+    return features.tolist()
 
 
 def get_merged_beatmap_data(beatmapset_path : str, beatmap_ID : int, note_precision : int) -> list[list]:

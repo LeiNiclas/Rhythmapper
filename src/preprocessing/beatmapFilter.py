@@ -1,6 +1,9 @@
 from ..download_utils import rateLimitOptimizer as rlo
 import requests
 import time
+import dotenv
+import os
+from ossapi import Ossapi, Beatmap
 
 
 universal_request_headers = {
@@ -20,25 +23,25 @@ def get_beatmap_metadata(beatmap_ID : int) -> dict:
         dict: _dict of the JSON contents of beatmap metadata if successful._ Defaults to None
     """
     
-    url = f"https://osu.direct/api/b/{beatmap_ID}"
-    
-    session = requests.Session()
-    session.headers.update(universal_request_headers)
-    
-    request = session.get(url)
-    
-    # Handle request rate limit.
-    time.sleep(rlo.get_optimal_wait_time(request=request))
-    
-    if request.status_code == 200:
-        return request.json()
-    else:
+    # REWORK!!! -------------------------------------
+    env_path = os.path.join(os.getcwd(), ".env")
+    dotenv.load_dotenv(env_path)
+    client_id = os.getenv("CLIENT_ID")
+    client_secret = os.getenv("CLIENT_SECRET")
+    api = Ossapi(client_id, client_secret)
+        
+    metadata = api.beatmap(beatmap_id=beatmap_ID)
+
+    if not metadata:
         print("ERROR (beatmapFilter.get_beatmap_metadata): "
               + f"Failed to fetch beatmap metadata for beatmap with ID {beatmap_ID}")
         return None
+    
+    return metadata
+    # -----------------------------------------------
 
 
-def get_beatmap_difficutly(metadata_json) -> str:
+def get_beatmap_difficutly(beatmap_metadata : Beatmap) -> str:
     """
     Retrieve the difficulty rating of a beatmap through its metadata.
 
@@ -48,7 +51,7 @@ def get_beatmap_difficutly(metadata_json) -> str:
     Returns:
         str: _Difficulty range label._
     """
-    difficulty_rating = metadata_json["DifficultyRating"]
+    difficulty_rating = beatmap_metadata.difficulty_rating
 
     if difficulty_rating < 1.0:
         return "0-1_stars"
@@ -64,7 +67,7 @@ def get_beatmap_difficutly(metadata_json) -> str:
         return "5_stars_plus"
 
 
-def beatmap_is_Nk(metadata_json, N : int) -> bool:
+def beatmap_is_Nk(beatmap_metadata : Beatmap, N : int) -> bool:
     """
     Check if the beatmap is Nk (N-keys) through its metadata.
 
@@ -75,8 +78,8 @@ def beatmap_is_Nk(metadata_json, N : int) -> bool:
     Returns:
         bool: _True_, if beatmap is Nk and the mode is mania (Mode = 3). _False_ otherwise.
     """
-    circle_size = metadata_json["CS"]
-    mode = metadata_json["Mode"]
+    circle_size = beatmap_metadata.cs
+    mode = beatmap_metadata.mode_int
     
     return circle_size == N and mode == 3
 
@@ -97,7 +100,7 @@ def filter_beatmap(beatmap_ID : int, keys : int) -> tuple[bool, str]:
     if beatmap_metadata is None:
         return False, "ERROR"
     
-    beatmap_difficulty = get_beatmap_difficutly(metadata_json=beatmap_metadata)
-    beatmap_fits_criteria = beatmap_is_Nk(metadata_json=beatmap_metadata, N=keys)
+    beatmap_difficulty = get_beatmap_difficutly(beatmap_metadata=beatmap_metadata)
+    beatmap_fits_criteria = beatmap_is_Nk(beatmap_metadata=beatmap_metadata, N=keys)
 
     return beatmap_fits_criteria, beatmap_difficulty

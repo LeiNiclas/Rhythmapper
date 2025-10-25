@@ -23,7 +23,6 @@ args = parser.parse_args()
 
 AUDIO_PATH = args.audio_file_path
 MODEL_PATH = args.model_path
-NORM_STATS_PATH = os.path.join(os.getcwd(), "json", "feature_norm_stats.json")
 
 AUDIO_BPM = args.audio_bpm
 AUDIO_START_MS = args.audio_start_ms
@@ -96,23 +95,18 @@ def extract_features(audio_path, audio_bpm, audio_start_ms, note_precision):
     return features
 
 
-def normalize_features(features = None, use_global_norm_stats = True, stats = None, sequence_length = 0):
+def normalize_features(features = None, sequence_length = 0):
     normalized_features = np.zeros_like(features)
     
     # Validity check.
     if not (features.ndim == 2 and features.shape[0] > 0):
         raise ValueError(f"Feature extraction failed: features shape is {features.shape}. ndim = {features.ndim}")
     
-    # Global norm.
-    if use_global_norm_stats:
-        for col in range(features.shape[1]):
-            normalized_features[:, col] = (features[:, col] - stats["means"][col]) / (stats["stds"][col] + 1e-6)
     # Local norm.
-    else:
-        means = features.mean(axis=0)
-        stds = features.std(axis=0)
+    means = features.mean(axis=0)
+    stds = features.std(axis=0)
         
-        normalized_features = (features - means) / (stds + 1e-6)
+    normalized_features = (features - means) / (stds + 1e-6)
     
     n = normalized_features.shape[0]
     n_trim = n - (n % sequence_length)
@@ -235,11 +229,6 @@ def convert_predictions_to_rthm_format(raw_predictions, post_processed_predictio
 
 
 def main():
-    stats = None
-    
-    with open(NORM_STATS_PATH, "r") as f:
-        stats = json.load(f)
-    
     # Seperate normalized features for more diverse predictions.
     raw_features = extract_features(
         audio_path=AUDIO_PATH,
@@ -250,36 +239,21 @@ def main():
     
     local_norm_features = normalize_features(
         features=raw_features,
-        use_global_norm_stats=False,
-        stats=stats,
-        sequence_length=SEQUENCE_LENGTH
-    )
-    
-    global_norm_features = normalize_features(
-        features=raw_features,
-        use_global_norm_stats=True,
-        stats=stats,
         sequence_length=SEQUENCE_LENGTH
     )
     
     model = tf.keras.models.load_model(MODEL_PATH, compile=False)
     
-    local_norm_preds = model.predict(local_norm_features)
-    global_norm_preds = model.predict(global_norm_features)
+    preds = model.predict(local_norm_features)
+    preds = preds.reshape(-1, preds.shape[-1])
     
-    local_norm_weight = 0.05
-    global_norm_weight = 0.95
-    
-    combined_preds = (local_norm_weight * local_norm_preds) + (global_norm_weight * global_norm_preds)
-    combined_preds = combined_preds.reshape(-1, combined_preds.shape[-1])
-    preds_bin = post_process_predictions(combined_preds, num_lanes=NUM_LANES)
-    
+    preds_bin = post_process_predictions(preds, num_lanes=NUM_LANES)
     note_density = np.mean(preds_bin)
     
     print("Predictions stats:")
-    print("Min:", np.min(combined_preds))
-    print("Max:", np.max(combined_preds))
-    print("Mean:", np.mean(combined_preds))
+    print("Min:", np.min(preds))
+    print("Max:", np.max(preds))
+    print("Mean:", np.mean(preds))
     print(f"Note density: {note_density}")
     
     subbeat_timings = calculate_subbeat_timings(
@@ -290,7 +264,7 @@ def main():
     )
     
     rthm_contents = convert_predictions_to_rthm_format(
-        raw_predictions=combined_preds,
+        raw_predictions=preds,
         post_processed_predictions=preds_bin,
         subbeat_timings=subbeat_timings
     )

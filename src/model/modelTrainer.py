@@ -99,8 +99,7 @@ def main():
         callbacks=[checkpoint_callback, early_stop]
     )
     
-    model_code = f"{MODEL_TARGET_DIFFICULTY}-P{DATA_NOTE_PRECISION}-S{MODEL_SEQUENCE_LENGTH}"
-    2
+    model_code = f"{MODEL_TARGET_DIFFICULTY}-P{DATA_NOTE_PRECISION}-S{MODEL_SEQUENCE_LENGTH}-PPV2-V3"
     model.save(os.path.join(args.output_dir, f"model-{model_code}.keras"), overwrite=False)
 
     
