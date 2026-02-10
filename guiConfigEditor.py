@@ -296,11 +296,9 @@ class ConfigEditor:
         # -------- Export settings --------
         self.add_header(self.export_frame, 4, "Metadata")
         
-        self.export_audio_start_time_ms = self.add_int_entry(self.export_frame, "Audio Start Time (ms):", "audio_start_ms", is_config_var=False)
-        self.export_audio_time_signature = self.add_int_entry(self.export_frame, "Audio Time Signature ([4]/4 | [3]/4):", "audio_time_signature", is_config_var=False)
         self.export_audio_title = self.add_str_entry(self.export_frame, "Audio Title:", "title", is_config_var=False)
         self.export_audio_artist = self.add_str_entry(self.export_frame, "Artist:", "artist", is_config_var=False)
-        self.export_difficulty_name = self.add_str_entry(self.export_frame, "Difficulty Name:", "difficulty_name", is_config_var=False)
+        self.export_difficulty = self.add_str_entry(self.export_frame, "Difficulty Name:", "difficulty", is_config_var=False)
         
         self.export_format = self.add_dropdown(self.export_frame, "Export format:", "export_format", options=EXPORT_OPTIONS, is_config_var=False)
         # ---------------------------------
@@ -444,22 +442,16 @@ class ConfigEditor:
     def export(self) -> None:
         bm_fp = self.export_beatmap_file_path.get()
         e_dd = self.export_destination_dir.get()
-        
-        bpm = self.export_audio_bpm.get()
-        start_time = self.export_audio_start_time_ms.get()
-        time_signature = self.export_audio_time_signature.get()
+
         title = self.export_audio_title.get()
         artist = self.export_audio_artist.get()
-        difficulty = self.export_difficulty_name.get()
+        difficulty = self.export_difficulty.get()
         fmt = self.export_format.get()
         
         metadata = {
-            "audio_bpm": bpm,
-            "audio_start_ms": start_time,
-            "audio_time_signature": time_signature,
             "title": title,
             "artist": artist,
-            "difficulty_name": difficulty
+            "difficulty": difficulty
         }
         
         # Automatically open the console window.
@@ -467,9 +459,9 @@ class ConfigEditor:
             self.open_output_window()
         
         if fmt == ".osz":
-            be.export_to_osz(beatmap_file_path=bm_fp, export_path=e_dd, metadata=metadata)
+            be.export_to_osz(beatmap_file_path=bm_fp, export_path=e_dd, additional_metadata=metadata)
         elif fmt == ".qua":
-            be.export_to_qua(beatmap_file_path=bm_fp, export_path=e_dd, metadata=metadata)
+            be.export_to_qua(beatmap_file_path=bm_fp, export_path=e_dd, additional_metadata=metadata)
         else:
             messagebox.showerror("Error", f"Beatmap could not be exported.")
             return

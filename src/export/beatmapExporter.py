@@ -2,121 +2,68 @@ import os
 import shutil
 
 
-def get_audio_file_path(beatmap_file_path : str):
+RTHM_METADATA_START_LINE = 2
+RTHM_METADATA_END_LINE = 6
+RTHM_NOTES_START_LINE = 9
+
+
+def get_rthm_contents(beatmap_file_path : str) -> tuple[dict, list]:
+    # Check file extension validity
     if beatmap_file_path.split(".")[-1] != "rthm":
-        raise FileNotFoundError(f"Error: Invalid beatmap file path.")
+        raise FileNotFoundError(f"Error: Non-rthm beatmap file: {beatmap_file_path}")
     
     rthm_contents = []
     
     with open(beatmap_file_path, "r") as f:
-        rthm_contents = f.readlines(10)
+        rthm_contents = f.readlines()
     
-    for line in rthm_contents:
-        if line.startswith("audiopath:"):
-            path = line[10:].strip()
-            return path
     
-    raise EOFError(f"Error: Could not find audiopath in the given beatmap file.")
+    raw_metadata = rthm_contents[RTHM_METADATA_START_LINE : RTHM_METADATA_END_LINE]
+    raw_notes = rthm_contents[RTHM_NOTES_START_LINE:]
+    
+    metadata = {}
+    
+    # Metadata saved in .rthm format "metadata_key:metadata_value"
+    # Convert to dict of { metadata_key1: metadata_value1, metadata_key2: metadata_value2, ... }
+    for line in raw_metadata:
+        key, value = line.strip().split(sep=":", maxsplit=1)
+        
+        try:
+            metadata[key] = float(value)
+        except ValueError:
+            metadata[key] = value
+    
+    
+    notes = []
+    
+    # Notes saved in .rthm format "timing|note1_bin:note1_pred|note2_bin:note2_pred|..."
+    # Convert to list of [ [timing, lane_idx], [timing, lane_idx], ... ]
+    for raw_line in raw_notes:
+        if raw_line.isspace():
+            continue
+        
+        raw_line = raw_line.strip()
+        
+        timing = raw_line.split("|")[0]
+        lane_data = raw_line.split("|")[1:]
+
+        for lane_idx, note_data in enumerate(lane_data):
+            note_bin = int(note_data.split(":")[0])
+            
+            if note_bin == 1:
+                notes.append([timing, lane_idx])
+    
+    
+    return metadata, notes
 
 
-def get_audio_bpm(beatmap_file_path : str):
-    if beatmap_file_path.split(".")[-1] != "rthm":
-        raise FileNotFoundError(f"Error: Invalid beatmap file path.")
-    
-    rthm_contents = []
-    
-    with open(beatmap_file_path, "r") as f:
-        rthm_contents = f.readlines(10)
-    
-    for line in rthm_contents:
-        if line.startswith("bpm:"):
-            bpm = line[4:].strip()
-            bpm = float(bpm)
-            return bpm
-    
-    raise EOFError(f"Error: Could not find bpm in the given beatmap file.")
-
-
-def export_to_osz(beatmap_file_path : str, export_path : str, metadata : dict) -> None:
-    audio_file_path = get_audio_file_path(beatmap_file_path=beatmap_file_path)
-    
-    # Check validity of audio file extension.
-    if audio_file_path.split('.')[-1] not in [ "mp3", "wav", "ogg" ]:
-        raise ValueError(f"Error: Could not export beatmap. Audio file {audio_file_path} has invalid extension.")
-    
-    # Check validty of beatmap file extension.
-    if beatmap_file_path.split('.')[-1] != "rthm":
-        raise FileNotFoundError(f"Error: Could not export beatmap .osz. Beatmap file {beatmap_file_path} has invalid extension.")
-    
-    beatmap_name = os.path.basename(beatmap_file_path).replace(".rthm", "")
-    audio_file_name = os.path.basename(audio_file_path)
-    
-    temp_dir = os.path.join(export_path, f"{beatmap_name}_temp")
-    os.makedirs(temp_dir, exist_ok=True)
-    
-    create_osu_file_template(
-        audio_file_name=audio_file_name,
-        beatmap_file_path=beatmap_file_path,
-        destination_file_path=temp_dir,
-        metadata=metadata
-    )
-    
-    shutil.copy(audio_file_path, os.path.join(temp_dir, audio_file_name))
-
-    archive_base = os.path.join(export_path, f"{beatmap_name}_exported")
-    shutil.make_archive(base_name=archive_base, format='zip', root_dir=temp_dir)
-    
-    shutil.rmtree(temp_dir)
-    
-    # Rename the .zip file to .osz.
-    os.rename(f"{archive_base}.zip", os.path.join(export_path, f"{beatmap_name}.osz"))
-
-
-def export_to_qua(beatmap_file_path : str, export_path : str, metadata : dict) -> None:
-    audio_file_path = get_audio_file_path(beatmap_file_path=beatmap_file_path)
-    
-    # Check validity of audio file extension.
-    if audio_file_path.split('.')[-1] not in [ "mp3", "wav", "ogg" ]:
-        raise ValueError(f"Error: Could not export beatmap. Audio file {audio_file_path} has invalid extension.")
-
-    # Check validity of beatmap file extension.
-    if beatmap_file_path.split('.')[-1] != "rthm":
-        raise ValueError(f"Error: Could not export beatmap. Beatmap file {beatmap_file_path} has invalid extension.")
-
-    title = metadata["title"]
-    artist = metadata["artist"]
-    difficulty = metadata["difficulty_name"]
-    audio_file_name = os.path.basename(audio_file_path)
-    
-    # Create folder for export.
-    beatmap_folder_name = f"{artist} - {title} (Quaver-map-gen-AI) [{difficulty}]"
-    beatmap_export_dir = os.path.join(export_path, beatmap_folder_name)
-    os.makedirs(beatmap_export_dir, exist_ok=True)
-
-    # Create .qua file.
-    create_qua_file_template(
-        audio_file_name=audio_file_name,
-        beatmap_file_path=beatmap_file_path,
-        destination_file_path=beatmap_export_dir,
-        metadata=metadata
-    )
-
-    # Copy audio to target location.
-    shutil.copy(audio_file_path, os.path.join(beatmap_export_dir, audio_file_name))
-
-
-def create_osu_file_template(audio_file_name : str, beatmap_file_path : str, destination_file_path : str, metadata : dict) -> str:
-    rthm_data = None
-    
-    with open(beatmap_file_path, "r") as f:
-        rthm_data = f.readlines()
-    
-    title = metadata["title"]
-    artist = metadata["artist"]
-    difficulty = metadata["difficulty_name"]
-    audio_start_timing = int(metadata["audio_start_ms"])
-    audio_bpm = get_audio_bpm(beatmap_file_path=beatmap_file_path)
-    audio_time_signature = int(metadata["audio_time_signature"])
+def rthm_to_osz(metadata : dict, notes : list, destination_file_path : str) -> None:
+    title = metadata.get("title", "Missing title")
+    artist = metadata.get("artist", "Missing artist")
+    difficulty = metadata.get("difficulty", "Missing difficulty")
+    audio_start_timing = int(metadata.get("audio_start", 0.0))
+    audio_bpm = float(metadata.get("bpm", 0))
+    audio_file_name = os.path.basename(metadata["audiopath"]) # Guaranteed to exist
     
     # -------- Necessary contents --------
     osu_file_contents = "osu file format v14\n\n"
@@ -144,7 +91,7 @@ def create_osu_file_template(audio_file_name : str, beatmap_file_path : str, des
     osu_file_contents += f"TitleUnicode:{title}\n"
     osu_file_contents += f"Artist:{artist}\n"
     osu_file_contents += f"ArtistUnicode:{artist}\n"
-    osu_file_contents += "Creator:osu-mania-gen-AI\n"
+    osu_file_contents += "Creator:Rhythmapper\n"
     osu_file_contents += f"Version:{difficulty}\n"
     osu_file_contents += "Source:\n"
     osu_file_contents += "Tags:\n"
@@ -170,58 +117,36 @@ def create_osu_file_template(audio_file_name : str, beatmap_file_path : str, des
     osu_file_contents += "//Storyboard Sound Samples\n\n"
     
     osu_file_contents += "[TimingPoints]\n"
-    osu_file_contents += f"{audio_start_timing},{60_000 / audio_bpm},{audio_time_signature},0,0,100,1,0\n\n"
+    osu_file_contents += f"{audio_start_timing},{60_000 / audio_bpm},4,0,0,100,1,0\n\n"
     # ------------------------------------
     
     # -------- HitObject conversion --------
     osu_file_contents += "[HitObjects]\n"
-    
-    fixed_object_string = "1,0,0:0:0:0:"
-    
-    # Find the beginning of the notes section first.
-    notes_section_start_idx = 0
-    
-    for i in range(rthm_data):
-        if rthm_data[i].startswith("// Notes"):
-            notes_section_start_idx = i+1
-            break
-    
-    for line in rthm_data[notes_section_start_idx:]:
-        line_contents = line.strip().split("|")
-        
-        timing = int(line_contents[0])
-        
-        lanes = line_contents[1:]
-        
-        for lane_idx, lane in enumerate(lanes):
-            note_present = (lane.split(":")[0] == "1")
-            
-            if note_present:
-                lane_pos = (lane_idx * 128) + 64
+    fixed_hitobject_string = "1,0,0:0:0:0:"
+
+    for note in notes:
+        timing = note[0]
+        lane_pos = (note[1] * 128) + 64
                 
-                hit_object = f"{lane_pos},192,{timing}," + fixed_object_string
-                osu_file_contents += hit_object + "\n"
+        hit_object = f"{lane_pos},192,{timing}," + fixed_hitobject_string
+        osu_file_contents += hit_object + "\n"
     # --------------------------------------
     
-    beatmap_name = f"{artist} - {title} (osu-mania-gen-AI) [{difficulty}].osu"
+    beatmap_name = f"{artist} - {title} (Rhythmapper) [{difficulty}].osu"
 
     with open(os.path.join(destination_file_path, beatmap_name), "x") as f:
         f.write(osu_file_contents)
 
 
-def create_qua_file_template(audio_file_name : str, beatmap_file_path : str, destination_file_path : str, metadata : dict) -> str:
-    rthm_data = None
-    
-    with open(beatmap_file_path, "r") as f:
-        rthm_data = f.readlines()
+def rthm_to_qua(metadata : dict, notes : list, destination_file_path : str) -> None:
+    title = metadata.get("title", "Missing title")
+    artist = metadata.get("artist", "Missing artist")
+    difficulty = metadata.get("difficulty", "Missing difficulty")
+    audio_start_timing = int(metadata.get("audio_start", 0.0))
+    audio_bpm = float(metadata.get("bpm", 0))
+    audio_file_name = os.path.basename(metadata["audiopath"]) # Guaranteed to exist
     
     # -------- Necessary contents --------
-    title = metadata["title"]
-    artist = metadata["artist"]
-    difficulty = metadata["difficulty_name"]
-    audio_start_timing = int(metadata["audio_start_ms"])
-    audio_bpm = get_audio_bpm(beatmap_file_path=beatmap_file_path)
-    
     qua_file_contents = f"AudioFile: {audio_file_name}\n"
     qua_file_contents += "SongPreviewTime: 0\n"
     qua_file_contents += "BackgroundFile: \n"
@@ -230,7 +155,7 @@ def create_qua_file_template(audio_file_name : str, beatmap_file_path : str, des
     qua_file_contents += f"Artist: {artist}\n"
     qua_file_contents += "Source: \n"
     qua_file_contents += "Tags: \n"
-    qua_file_contents += "Creator: Quaver-map-gen-AI\n"
+    qua_file_contents += "Creator: Rhythmapper\n"
     qua_file_contents += f"DifficultyName: {difficulty}\n"
     qua_file_contents += "Description: AI generated map. (https://github.com/LeiNiclas/Rhythmapper)\n"
     qua_file_contents += "EditorLayers: []\n\n"
@@ -245,33 +170,99 @@ def create_qua_file_template(audio_file_name : str, beatmap_file_path : str, des
     # ------------------------------------
     
     # -------- HitObject conversion --------
-    # Find the beginning of the notes section first.
-    notes_section_start_idx = 0
-    
-    for i in range(rthm_data):
-        if rthm_data[i].startswith("// Notes"):
-            notes_section_start_idx = i+1
-            break
-    
-    for line in rthm_data[notes_section_start_idx:]:
-        line_contents = line.strip().split("|")
+    for note in notes:
+        timing = note[0]
+        lane_idx = note[1]
         
-        timing = int(line_contents[0])
+        hit_object =  f"- StartTime: {timing}\n"
+        hit_object += f"  Lane: {lane_idx + 1}\n"
         
-        lanes = line_contents[1:]
-        
-        for lane_idx, lane in enumerate(lanes):
-            note_present = (lane.split(":")[0] == "1")
-            
-            if note_present:
-                hit_object =  f"- StartTime: {timing}\n"
-                hit_object += f"  Lane: {lane_idx + 1}\n"
-                
-                qua_file_contents += hit_object
+        qua_file_contents += hit_object
     # --------------------------------------
     
-    
-    beatmap_name = f"{artist} - {title} (Quaver-map-gen-AI) [{difficulty}].qua"
+    beatmap_name = f"{artist} - {title} (Rhythmapper) [{difficulty}].qua"
     
     with open(os.path.join(destination_file_path, beatmap_name), "x", encoding="utf-8") as f:
         f.write(qua_file_contents)
+
+
+def export_to_osz(beatmap_file_path : str, export_path : str, additional_metadata : dict = None) -> None:
+    rthm_metadata, rthm_notes = get_rthm_contents(beatmap_file_path=beatmap_file_path)
+    
+    # Ensure audiopath exists in file.
+    audio_file_path = rthm_metadata.get("audiopath")
+    
+    if not audio_file_path:
+        raise AttributeError(f"Error: Could not resolve audiopath from .rthm file")
+    
+    # Merge metadata dicts.
+    if additional_metadata:
+        for key, value in  additional_metadata.items():
+            if not rthm_metadata.get(key):
+                rthm_metadata[key] = value
+    
+    # Use base names from existing files for exporting.
+    beatmap_name = os.path.basename(beatmap_file_path).replace(".rthm", "")
+    audio_file_name = os.path.basename(audio_file_path)
+    
+    # Export file to given path.
+    # [!]   The export process involves creating a temporary directory
+    #       at the export path to which the exported files are saved.
+    #       After both the beatmap file and audio file are successfully
+    #       copied into this directory, it is converted into a .zip
+    #       and renamed to a .osz.
+    #       Finally, the temporary directory can be removed.
+    temp_dir = os.path.join(export_path, f"{beatmap_name}_temp")
+    os.makedirs(temp_dir, exist_ok=True)
+    
+    rthm_to_osz(
+        metadata=rthm_metadata,
+        notes=rthm_notes,
+        destination_file_path=temp_dir
+    )
+    
+    shutil.copy(audio_file_path, os.path.join(temp_dir, audio_file_name))
+
+    archive_base = os.path.join(export_path, f"{beatmap_name}_exported")
+    shutil.make_archive(base_name=archive_base, format='zip', root_dir=temp_dir)
+    
+    shutil.rmtree(temp_dir)
+    
+    # Rename the .zip file to .osz.
+    os.rename(f"{archive_base}.zip", os.path.join(export_path, f"{beatmap_name}.osz"))
+
+
+def export_to_qua(beatmap_file_path : str, export_path : str, additional_metadata : dict = None) -> None:
+    rthm_metadata, rthm_notes = get_rthm_contents(beatmap_file_path=beatmap_file_path)
+    
+    # Ensure audiopath exists in file.
+    audio_file_path = rthm_metadata.get("audiopath")
+    
+    if not audio_file_path:
+        raise AttributeError(f"Error: Could not resolve audiopath from .rthm file")
+    
+    # Merge metadata dicts.
+    if additional_metadata:
+        for key, value in additional_metadata.items():
+            if not rthm_metadata.get(key):
+                rthm_metadata[key] = value
+    
+    title = rthm_metadata.get("title", "Missing title")
+    artist = rthm_metadata.get("artist", "Missing artist")
+    difficulty = rthm_metadata.get("difficulty", "Missing difficulty")
+    audio_file_name = os.path.basename(audio_file_path)
+    
+    # Create folder for export.
+    beatmap_folder_name = f"{artist} - {title} (Rhythmapper) [{difficulty}]"
+    beatmap_export_dir = os.path.join(export_path, beatmap_folder_name)
+    os.makedirs(beatmap_export_dir, exist_ok=True)
+
+    # Create .qua file.
+    rthm_to_qua(
+        metadata=rthm_metadata,
+        notes=rthm_notes,
+        destination_file_path=beatmap_export_dir
+    )
+
+    # Copy audio to target location.
+    shutil.copy(audio_file_path, os.path.join(beatmap_export_dir, audio_file_name))
